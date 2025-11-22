@@ -1,12 +1,12 @@
 import React from 'react';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
-export default function HomeScreen() {
+export default function ChatScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Territory Home</Text>
-        <Text style={styles.subtitle}>See your SDG territory and start a new run.</Text>
+        <Text style={styles.title}>Group Chat</Text>
+        <Text style={styles.subtitle}>Coordinate runs with your team.</Text>
       </View>
     </SafeAreaView>
   );

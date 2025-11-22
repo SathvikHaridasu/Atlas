@@ -40,7 +40,6 @@ export async function signUp({ email, password, metadata }: SignUpData): Promise
     if (data.user) {
       const profileData: Record<string, any> = {
         user_id: data.user.id,
-        email: data.user.email,
       };
       
       // Add scanData to profile if provided
@@ -50,7 +49,7 @@ export async function signUp({ email, password, metadata }: SignUpData): Promise
       
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert(profileData)
+        .upsert(profileData, { onConflict: 'user_id' })
         .select()
         .single();
 
