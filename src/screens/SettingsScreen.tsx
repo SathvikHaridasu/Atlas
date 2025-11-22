@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   useColorScheme,
 } from "react-native";
+import { useAuth } from "../../contexts/AuthContext";
 
 type ThemeOption = "system" | "light" | "dark";
 
@@ -31,12 +32,13 @@ const COLORS = {
 interface SettingsScreenProps {}
 
 const SettingsScreen: React.FC<SettingsScreenProps> = () => {
-  // In a real app, this would come from auth/user state
-  const mockUser = {
-    name: "Jane Runner",
-    email: "jane.runner@example.com",
-    username: "@janeruns",
-  };
+  const { user, profile, signOut } = useAuth();
+
+  const displayName =
+    profile?.username ||
+    profile?.full_name ||
+    user?.user_metadata?.full_name ||
+    (user?.email ? user.email.split('@')[0] : 'Your Account');
 
   const systemScheme = useColorScheme();
   const [theme, setTheme] = useState<ThemeOption>("system");
@@ -51,9 +53,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
     // TODO: wire this into your real theme system (context/store + persistence)
   };
 
-  const handleSignOut = () => {
-    // TODO: replace with your real sign-out logic
-    console.log("Sign out pressed");
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   const handleEditProfile = () => {
@@ -70,20 +71,22 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
       <View style={[styles.card, isDark && styles.cardDark]}>
         <View style={[styles.avatar, isDark && styles.avatarDark]}>
           <Text style={[styles.avatarText, isDark && styles.avatarTextDark]}>
-            {mockUser.name.charAt(0)}
+            {displayName.charAt(0).toUpperCase()}
           </Text>
         </View>
 
         <View style={styles.profileInfo}>
           <Text style={[styles.name, isDark && styles.textDark]}>
-            {mockUser.name}
+            {displayName}
           </Text>
           <Text style={[styles.email, isDark && styles.subtleTextDark]}>
-            {mockUser.email}
+            {user?.email || 'No email'}
           </Text>
-          <Text style={[styles.username, isDark && styles.subtleTextDark]}>
-            {mockUser.username}
-          </Text>
+          {profile?.username && (
+            <Text style={[styles.username, isDark && styles.subtleTextDark]}>
+              @{profile.username}
+            </Text>
+          )}
         </View>
 
         <TouchableOpacity

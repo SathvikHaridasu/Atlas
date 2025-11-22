@@ -2,14 +2,16 @@ import { AuthError, Session, User } from '@supabase/supabase-js';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import * as authActions from '../lib/auth';
 import { supabase } from '../lib/supabaseClient';
+import { Profile } from '../hooks/useProfile';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  profile: Profile | null;
   loading: boolean;
   signUp: (email: string, password: string, metadata?: Record<string, any>, scanData?: any) => Promise<{ user: User | null; error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ user: User | null; error: AuthError | null }>;
-  signOut: () => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signOut: () => Promise<void>;
   resetPassword: (email: string, redirectTo?: string) => Promise<{ error: AuthError | null }>;
   signInWithOAuth: (provider: 'google' | 'github' | 'apple', redirectTo?: string) => Promise<{ error: AuthError | null }>;
 }
@@ -23,7 +25,57 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Fetch profile when user changes
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+
+    async function fetchProfile() {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (fetchError) {
+          // If profile doesn't exist, create one
+          if (fetchError.code === 'PGRST116') {
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                user_id: user.id,
+                email: user.email,
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('Error creating profile:', createError);
+              setProfile(null);
+            } else {
+              setProfile(newProfile);
+            }
+          } else {
+            console.error('Error fetching profile:', fetchError);
+            setProfile(null);
+          }
+        } else {
+          setProfile(data);
+        }
+      } catch (err) {
+        console.error('Error in fetchProfile:', err);
+        setProfile(null);
+      }
+    }
+
+    fetchProfile();
+  }, [user]);
 
   useEffect(() => {
     // Get initial session
@@ -50,12 +102,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return authActions.signUp({ email, password, metadata: signUpMetadata });
   };
 
-  const signIn = async (email: string, password: string) => {
-    return authActions.signIn({ email, password });
+  const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error || !data.user) {
+        setLoading(false);
+        return { error: error?.message || 'Invalid email or password.' };
+      }
+
+      const user = data.user;
+      
+      // Fetch profile after successful login
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError) {
+        console.warn('Profile fetch error:', profileError.message);
+      }
+
+      setUser(user);
+      setProfile(profile ?? null);
+      setLoading(false);
+      return {};
+    } catch (e: any) {
+      console.error('signIn error', e);
+      setLoading(false);
+      return { error: 'Something went wrong. Please try again.' };
+    }
   };
 
-  const signOut = async () => {
-    return authActions.signOut();
+  const signOut = async (): Promise<void> => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
   };
 
   const resetPassword = async (email: string, redirectTo?: string) => {
@@ -69,6 +156,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value: AuthContextType = {
     user,
     session,
+    profile,
     loading,
     signUp,
     signIn,
