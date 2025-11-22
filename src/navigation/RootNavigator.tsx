@@ -18,6 +18,7 @@ import HomeScreen from '../screens/HomeScreen';
 import RunScreen from '../screens/RunScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
+import SignUpScreen from '../screens/SignUpScreen';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -94,6 +95,11 @@ function AuthStack() {
       <Stack.Screen
         name="SignIn"
         component={SignInScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SignUp"
+        component={SignUpScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
