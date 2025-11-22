@@ -12,29 +12,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useColorScheme,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabaseClient";
-
-type ThemeOption = "system" | "light" | "dark";
-
-// Color palette
-const COLORS = {
-  accent: "#03CA59",
-  bgDark: "#020202",
-  cardDark: "#101010",
-  borderDark: "rgba(3, 202, 89, 0.4)",
-  textPrimaryDark: "#F9FAFB",
-  textSecondaryDark: "#9CA3AF",
-};
+import { useAppTheme } from "../contexts/ThemeContext";
 
 interface SettingsScreenProps {}
 
 const SettingsScreen: React.FC<SettingsScreenProps> = () => {
   const { user, profile, signOut } = useAuth();
+  const { theme, isDark, toggleTheme } = useAppTheme();
 
   const displayName =
     profile?.full_name ||
@@ -42,8 +31,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
     user?.user_metadata?.full_name ||
     (user?.email ? user.email.split('@')[0] : 'Your Account');
 
-  const systemScheme = useColorScheme();
-  const [theme, setTheme] = useState<ThemeOption>("system");
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [runReminders, setRunReminders] = useState(true);
@@ -56,12 +43,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
   const [editAvatar, setEditAvatar] = useState<string | null>(profile?.avatar_url || null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const isDark = theme === "dark" || (theme === "system" && systemScheme === "dark");
-
-  const handleThemeChange = (option: ThemeOption) => {
-    setTheme(option);
-    // TODO: wire this into your real theme system (context/store + persistence)
-  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -147,20 +128,20 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
         {/* Profile header */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <TouchableOpacity onPress={handleEditProfile} activeOpacity={0.8}>
-            <View style={styles.avatar}>
+            <View style={[styles.avatar, { borderColor: theme.border }]}>
               {editAvatar ? (
                 <Image source={{ uri: editAvatar }} style={styles.avatarImage} />
               ) : (
-                <Text style={styles.avatarText}>
+                <Text style={[styles.avatarText, { color: '#000' }]}>
                   {displayName.charAt(0).toUpperCase()}
                 </Text>
               )}
@@ -168,58 +149,58 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
           </TouchableOpacity>
 
           <View style={styles.profileInfo}>
-            <Text style={styles.name}>{displayName}</Text>
-            <Text style={styles.email}>{user?.email || 'No email'}</Text>
+            <Text style={[styles.name, { color: theme.text }]}>{displayName}</Text>
+            <Text style={[styles.email, { color: theme.mutedText }]}>{user?.email || 'No email'}</Text>
             {profile?.username && (
-              <Text style={styles.username}>@{profile.username}</Text>
+              <Text style={[styles.username, { color: theme.mutedText }]}>@{profile.username}</Text>
             )}
           </View>
 
           <TouchableOpacity
-            style={styles.editButton}
+            style={[styles.editButton, { borderColor: theme.accent }]}
             onPress={handleEditProfile}
             activeOpacity={0.8}
           >
-            <Text style={styles.editButtonText}>Edit</Text>
+            <Text style={[styles.editButtonText, { color: theme.accent }]}>Edit</Text>
           </TouchableOpacity>
         </View>
 
         {/* Appearance section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Appearance</Text>
+        <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.mutedText }]}>Appearance</Text>
 
           <View style={styles.row}>
             <View style={styles.rowLeft}>
-              <Ionicons name="moon-outline" size={20} color={COLORS.textSecondaryDark} />
-              <Text style={styles.rowLabel}>Dark Mode</Text>
+              <Ionicons name="moon-outline" size={20} color={theme.mutedText} />
+              <Text style={[styles.rowLabel, { color: theme.text }]}>Dark Mode</Text>
             </View>
             <Switch
               value={isDark}
-              onValueChange={(value) => handleThemeChange(value ? "dark" : "light")}
-              trackColor={{ false: "rgba(148,163,184,0.4)", true: COLORS.accent }}
+              onValueChange={toggleTheme}
+              trackColor={{ false: "rgba(148,163,184,0.4)", true: theme.accent }}
               thumbColor="#FFFFFF"
             />
           </View>
 
           <View style={styles.row}>
             <View style={styles.rowLeft}>
-              <MaterialIcons name="straighten" size={20} color={COLORS.textSecondaryDark} />
-              <Text style={styles.rowLabel}>Distance Units</Text>
+              <MaterialIcons name="straighten" size={20} color={theme.mutedText} />
+              <Text style={[styles.rowLabel, { color: theme.text }]}>Distance Units</Text>
             </View>
-            <View style={styles.segmentContainer}>
+            <View style={[styles.segmentContainer, { backgroundColor: theme.border }]}>
               <TouchableOpacity
-                style={[styles.segmentButton, distanceUnits === "km" && styles.segmentButtonActive]}
+                style={[styles.segmentButton, distanceUnits === "km" && [styles.segmentButtonActive, { backgroundColor: theme.accent }]]}
                 onPress={() => setDistanceUnits("km")}
               >
-                <Text style={[styles.segmentText, distanceUnits === "km" && styles.segmentTextActive]}>
+                <Text style={[styles.segmentText, { color: theme.mutedText }, distanceUnits === "km" && styles.segmentTextActive]}>
                   km
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.segmentButton, distanceUnits === "miles" && styles.segmentButtonActive]}
+                style={[styles.segmentButton, distanceUnits === "miles" && [styles.segmentButtonActive, { backgroundColor: theme.accent }]]}
                 onPress={() => setDistanceUnits("miles")}
               >
-                <Text style={[styles.segmentText, distanceUnits === "miles" && styles.segmentTextActive]}>
+                <Text style={[styles.segmentText, { color: theme.mutedText }, distanceUnits === "miles" && styles.segmentTextActive]}>
                   miles
                 </Text>
               </TouchableOpacity>
@@ -228,68 +209,68 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
         </View>
 
         {/* Notifications section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
+        <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.mutedText }]}>Notifications</Text>
 
           <View style={styles.row}>
             <View style={styles.rowLeft}>
-              <Ionicons name="notifications-outline" size={20} color={COLORS.textSecondaryDark} />
+              <Ionicons name="notifications-outline" size={20} color={theme.mutedText} />
               <View>
-                <Text style={styles.rowLabel}>Run Reminders</Text>
-                <Text style={styles.rowDescription}>Get notified to start your daily run</Text>
+                <Text style={[styles.rowLabel, { color: theme.text }]}>Run Reminders</Text>
+                <Text style={[styles.rowDescription, { color: theme.mutedText }]}>Get notified to start your daily run</Text>
               </View>
             </View>
             <Switch
               value={runReminders}
               onValueChange={setRunReminders}
-              trackColor={{ false: "rgba(148,163,184,0.4)", true: COLORS.accent }}
+              trackColor={{ false: "rgba(148,163,184,0.4)", true: theme.accent }}
               thumbColor="#FFFFFF"
             />
           </View>
 
           <View style={styles.row}>
             <View style={styles.rowLeft}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.textSecondaryDark} />
+              <Ionicons name="mail-outline" size={20} color={theme.mutedText} />
               <View>
-                <Text style={styles.rowLabel}>Weekly Summary</Text>
-                <Text style={styles.rowDescription}>Receive weekly progress reports</Text>
+                <Text style={[styles.rowLabel, { color: theme.text }]}>Weekly Summary</Text>
+                <Text style={[styles.rowDescription, { color: theme.mutedText }]}>Receive weekly progress reports</Text>
               </View>
             </View>
             <Switch
               value={weeklySummary}
               onValueChange={setWeeklySummary}
-              trackColor={{ false: "rgba(148,163,184,0.4)", true: COLORS.accent }}
+              trackColor={{ false: "rgba(148,163,184,0.4)", true: theme.accent }}
               thumbColor="#FFFFFF"
             />
           </View>
 
           <View style={styles.row}>
             <View style={styles.rowLeft}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.textSecondaryDark} />
+              <Ionicons name="mail-outline" size={20} color={theme.mutedText} />
               <View>
-                <Text style={styles.rowLabel}>Email Updates</Text>
-                <Text style={styles.rowDescription}>Summaries and important announcements</Text>
+                <Text style={[styles.rowLabel, { color: theme.text }]}>Email Updates</Text>
+                <Text style={[styles.rowDescription, { color: theme.mutedText }]}>Summaries and important announcements</Text>
               </View>
             </View>
             <Switch
               value={emailEnabled}
               onValueChange={setEmailEnabled}
-              trackColor={{ false: "rgba(148,163,184,0.4)", true: COLORS.accent }}
+              trackColor={{ false: "rgba(148,163,184,0.4)", true: theme.accent }}
               thumbColor="#FFFFFF"
             />
           </View>
         </View>
 
         {/* Account section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+        <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.mutedText }]}>Account</Text>
 
           <TouchableOpacity style={styles.row} activeOpacity={0.7}>
             <View style={styles.rowLeft}>
-              <Ionicons name="person-outline" size={20} color={COLORS.textSecondaryDark} />
-              <Text style={styles.rowLabel}>Manage Account</Text>
+              <Ionicons name="person-outline" size={20} color={theme.mutedText} />
+              <Text style={[styles.rowLabel, { color: theme.text }]}>Manage Account</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondaryDark} />
+            <Ionicons name="chevron-forward" size={20} color={theme.mutedText} />
           </TouchableOpacity>
         </View>
 
@@ -320,7 +301,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
                 onPress={() => setEditModalVisible(false)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="close" size={24} color={COLORS.textPrimaryDark} />
+                <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
 
@@ -346,13 +327,13 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
                 value={editName}
                 onChangeText={setEditName}
                 placeholder="Enter your name"
-                placeholderTextColor={COLORS.textSecondaryDark}
+                placeholderTextColor={theme.mutedText}
                 maxLength={50}
               />
 
               {isSaving && (
                 <View style={styles.savingIndicator}>
-                  <ActivityIndicator size="small" color={COLORS.accent} />
+                  <ActivityIndicator size="small" color={theme.accent} />
                   <Text style={styles.savingText}>Saving...</Text>
                 </View>
               )}
@@ -385,7 +366,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bgDark,
   },
   scrollView: {
     flex: 1,
@@ -398,22 +378,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: COLORS.cardDark,
     borderRadius: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: COLORS.borderDark,
   },
   avatar: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: COLORS.accent,
+    backgroundColor: "#03CA59",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 16,
     borderWidth: 2,
-    borderColor: COLORS.borderDark,
   },
   avatarImage: {
     width: 64,
@@ -431,40 +408,33 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     fontWeight: "700",
-    color: COLORS.textPrimaryDark,
     marginBottom: 4,
   },
   email: {
     fontSize: 14,
-    color: COLORS.textSecondaryDark,
     marginBottom: 2,
   },
   username: {
     fontSize: 13,
-    color: COLORS.textSecondaryDark,
   },
   editButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: COLORS.accent,
     backgroundColor: "transparent",
   },
   editButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: COLORS.accent,
   },
   section: {
-    backgroundColor: COLORS.cardDark,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 4,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: COLORS.borderDark,
   },
   sectionTitle: {
     fontSize: 14,
@@ -472,7 +442,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.6,
     marginBottom: 12,
-    color: COLORS.textSecondaryDark,
   },
   row: {
     flexDirection: "row",
@@ -490,12 +459,10 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: COLORS.textPrimaryDark,
     marginLeft: 12,
   },
   rowDescription: {
     fontSize: 13,
-    color: COLORS.textSecondaryDark,
     marginTop: 2,
     marginLeft: 12,
   },
@@ -511,12 +478,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   segmentButtonActive: {
-    backgroundColor: COLORS.accent,
+    // backgroundColor set inline with theme.accent
   },
   segmentText: {
     fontSize: 14,
     fontWeight: "500",
-    color: COLORS.textSecondaryDark,
   },
   segmentTextActive: {
     color: "#000",
@@ -545,7 +511,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: COLORS.cardDark,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 20,
@@ -562,7 +527,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: COLORS.textPrimaryDark,
   },
   modalBody: {
     paddingHorizontal: 20,
@@ -572,12 +536,11 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: COLORS.accent,
+    backgroundColor: "#03CA59",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
     borderWidth: 3,
-    borderColor: COLORS.borderDark,
   },
   modalAvatarImage: {
     width: 100,
@@ -596,28 +559,25 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.accent,
+    backgroundColor: "#03CA59",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: COLORS.cardDark,
+    borderColor: "#101010",
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: COLORS.textSecondaryDark,
     marginBottom: 8,
     alignSelf: "flex-start",
     width: "100%",
   },
   input: {
     width: "100%",
-    backgroundColor: "#181818",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: COLORS.textPrimaryDark,
     marginBottom: 16,
   },
   savingIndicator: {
@@ -627,7 +587,6 @@ const styles = StyleSheet.create({
   },
   savingText: {
     fontSize: 14,
-    color: COLORS.textSecondaryDark,
     marginLeft: 8,
   },
   modalFooter: {
@@ -642,19 +601,16 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.borderDark,
     alignItems: "center",
   },
   modalCancelText: {
     fontSize: 16,
     fontWeight: "600",
-    color: COLORS.textSecondaryDark,
   },
   modalSaveButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: COLORS.accent,
     alignItems: "center",
   },
   modalSaveButtonDisabled: {

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../contexts/ThemeContext';
 
 interface Message {
   id: string;
@@ -24,6 +25,7 @@ interface Message {
 
 export default function ChatScreen() {
   const { user } = useAuth();
+  const { theme } = useAppTheme();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -76,14 +78,14 @@ export default function ChatScreen() {
   const renderMessage = ({ item }: { item: Message }) => (
     <View style={[styles.messageContainer, item.isMine ? styles.messageRight : styles.messageLeft]}>
       {!item.isMine && (
-        <Text style={styles.senderName}>{item.sender}</Text>
+        <Text style={[styles.senderName, { color: theme.mutedText }]}>{item.sender}</Text>
       )}
-      <View style={[styles.messageBubble, item.isMine ? styles.bubbleMine : styles.bubbleOther]}>
-        <Text style={[styles.messageText, item.isMine ? styles.textMine : styles.textOther]}>
+      <View style={[styles.messageBubble, item.isMine ? [styles.bubbleMine, { backgroundColor: theme.accent }] : [styles.bubbleOther, { backgroundColor: theme.card }]]}>
+        <Text style={[styles.messageText, item.isMine ? styles.textMine : { color: theme.text }]}>
           {item.text}
         </Text>
       </View>
-      <Text style={styles.timestamp}>{formatTime(item.timestamp)}</Text>
+      <Text style={[styles.timestamp, { color: theme.mutedText }]}>{formatTime(item.timestamp)}</Text>
     </View>
   );
 
@@ -131,21 +133,21 @@ export default function ChatScreen() {
         />
 
         {/* Input Bar */}
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
           <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
-            <Ionicons name="attach-outline" size={24} color="#9CA3AF" />
+            <Ionicons name="attach-outline" size={24} color={theme.mutedText} />
           </TouchableOpacity>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.border, color: theme.text }]}
             placeholder="Type a message..."
-            placeholderTextColor="#6B7280"
+            placeholderTextColor={theme.mutedText}
             value={inputText}
             onChangeText={setInputText}
             multiline
             maxLength={500}
           />
           <TouchableOpacity
-            style={[styles.sendButton, inputText.trim() && styles.sendButtonActive]}
+            style={[styles.sendButton, { backgroundColor: theme.border }, inputText.trim() && [styles.sendButtonActive, { backgroundColor: theme.accent }]]}
             onPress={handleSend}
             activeOpacity={0.8}
             disabled={!inputText.trim()}
@@ -153,7 +155,7 @@ export default function ChatScreen() {
             <Ionicons
               name="send"
               size={20}
-              color={inputText.trim() ? '#000' : '#6B7280'}
+              color={inputText.trim() ? '#000' : theme.mutedText}
             />
           </TouchableOpacity>
         </View>
@@ -165,7 +167,6 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020202',
   },
   keyboardView: {
     flex: 1,
@@ -176,9 +177,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#101010',
     borderBottomWidth: 1,
-    borderBottomColor: '#181818',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -216,11 +215,9 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#F9FAFB',
   },
   memberCount: {
     fontSize: 12,
-    color: '#9CA3AF',
     marginTop: 2,
   },
   infoButton: {
@@ -229,9 +226,7 @@ const styles = StyleSheet.create({
   challengePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(3, 202, 89, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(3, 202, 89, 0.3)',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -241,7 +236,6 @@ const styles = StyleSheet.create({
   },
   challengeText: {
     fontSize: 12,
-    color: '#03CA59',
     marginLeft: 8,
     flex: 1,
   },
@@ -264,7 +258,6 @@ const styles = StyleSheet.create({
   },
   senderName: {
     fontSize: 12,
-    color: '#9CA3AF',
     marginBottom: 4,
     marginLeft: 4,
   },
@@ -274,10 +267,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bubbleMine: {
-    backgroundColor: '#03CA59',
+    // backgroundColor set inline with theme.accent
   },
   bubbleOther: {
-    backgroundColor: '#181818',
+    // backgroundColor set inline with theme.card
   },
   messageText: {
     fontSize: 15,
@@ -287,12 +280,8 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: '500',
   },
-  textOther: {
-    color: '#F9FAFB',
-  },
   timestamp: {
     fontSize: 11,
-    color: '#6B7280',
     marginTop: 4,
     marginLeft: 4,
   },
@@ -301,9 +290,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#101010',
     borderTopWidth: 1,
-    borderTopColor: '#181818',
   },
   attachButton: {
     padding: 8,
@@ -311,11 +298,9 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#181818',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    color: '#F9FAFB',
     fontSize: 15,
     maxHeight: 100,
   },
@@ -323,12 +308,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#181818',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
   sendButtonActive: {
-    backgroundColor: '#03CA59',
+    // backgroundColor set inline with theme.accent
   },
 });

@@ -3,17 +3,19 @@
 // expo install react-native-screens react-native-safe-area-context
 // npm install @react-navigation/native-stack @react-navigation/bottom-tabs
 
-import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { enableScreens } from 'react-native-screens';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../contexts/ThemeContext';
 
+import ChallengesScreen from '../screens/ChallengesScreen';
+import ChatScreen from '../screens/ChatScreen';
 import HomeScreen from '../screens/HomeScreen';
 import RunScreen from '../screens/RunScreen';
-import ChatScreen from '../screens/ChatScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
 
@@ -26,6 +28,7 @@ export type RootTabParamList = {
   Run: undefined;
   Chat: undefined;
   Settings: undefined;
+  Challenges: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -40,6 +43,7 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           title: 'Home',
+          headerShown: false,
           // TODO: Add icon using @expo/vector-icons/Ionicons
           // tabBarIcon: ({ color, size }) => (
           //   <Ionicons name="home" size={size} color={color} />
@@ -99,18 +103,35 @@ function AuthStack() {
 // Root navigator that gates based on auth state
 export default function RootNavigator() {
   const { user, loading } = useAuth();
+  const { isDark } = useAppTheme();
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-        <ActivityIndicator size="large" color="#2563EB" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#020202' : '#FFFFFF' }}>
+        <ActivityIndicator size="large" color="#03CA59" />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
-      {user ? <MainTabs /> : <AuthStack />}
+    <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
+      {user ? (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen
+            name="Challenges"
+            component={ChallengesScreen}
+            options={{
+              headerShown: true,
+              title: 'Challenges',
+              headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
+              headerTintColor: isDark ? '#F9FAFB' : '#111111',
+            }}
+          />
+        </Stack.Navigator>
+      ) : (
+        <AuthStack />
+      )}
     </NavigationContainer>
   );
 }
