@@ -14,6 +14,7 @@ import { useAppTheme } from '../contexts/ThemeContext';
 
 import ChallengesScreen from '../screens/ChallengesScreen';
 import ChatScreen from '../screens/ChatScreen';
+import CreateGoalScreen from '../screens/CreateGoalScreen';
 import HomeScreen from '../screens/HomeScreen';
 import RunScreen from '../screens/RunScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -124,6 +125,16 @@ export default function RootNavigator() {
             options={{
               headerShown: true,
               title: 'Challenges',
+              headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
+              headerTintColor: isDark ? '#F9FAFB' : '#111111',
+            }}
+          />
+          <Stack.Screen
+            name="CreateGoal"
+            component={CreateGoalScreen}
+            options={{
+              headerShown: true,
+              title: 'Create Goal',
               headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
               headerTintColor: isDark ? '#F9FAFB' : '#111111',
             }}
