@@ -13,9 +13,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 
 import ChallengesScreen from '../screens/ChallengesScreen';
-import ChatScreen from '../screens/ChatScreen';
+import CreateSessionScreen from '../screens/CreateSessionScreen';
 import HomeScreen from '../screens/HomeScreen';
+import JoinSessionScreen from '../screens/JoinSessionScreen';
 import RunScreen from '../screens/RunScreen';
+import SessionLobbyScreen from '../screens/SessionLobbyScreen';
+import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
@@ -27,9 +30,8 @@ enableScreens(true);
 export type RootTabParamList = {
   Home: undefined;
   Run: undefined;
-  Chat: undefined;
+  Sessions: undefined;
   Settings: undefined;
-  Challenges: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -63,13 +65,13 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Chat"
-        component={ChatScreen}
+        name="Sessions"
+        component={SessionsHomeScreen}
         options={{
-          title: 'Group Chat',
+          title: 'Sessions',
           // TODO: Add icon using @expo/vector-icons/Ionicons
           // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="chatbubbles" size={size} color={color} />
+          //   <Ionicons name="people" size={size} color={color} />
           // ),
         }}
       />
@@ -124,6 +126,9 @@ export default function RootNavigator() {
       {user ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
+          <Stack.Screen name="JoinSession" component={JoinSessionScreen} />
+          <Stack.Screen name="SessionLobby" component={SessionLobbyScreen} />
           <Stack.Screen
             name="Challenges"
             component={ChallengesScreen}
