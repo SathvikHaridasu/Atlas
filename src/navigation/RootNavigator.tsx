@@ -3,19 +3,19 @@
 // expo install react-native-screens react-native-safe-area-context
 // npm install @react-navigation/native-stack @react-navigation/bottom-tabs
 
-import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { enableScreens } from 'react-native-screens';
 import { useAuth } from '../../contexts/AuthContext';
 
+import ChatScreen from '../screens/ChatScreen';
 import HomeScreen from '../screens/HomeScreen';
 import RunScreen from '../screens/RunScreen';
-import ChatScreen from '../screens/ChatScreen';
-import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
+import SettingsNavigator from './SettingsNavigator';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -70,9 +70,10 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsNavigator}
         options={{
           title: 'Settings',
+          headerShown: false,
           // TODO: Add icon using @expo/vector-icons/Ionicons
           // tabBarIcon: ({ color, size }) => (
           //   <Ionicons name="settings" size={size} color={color} />
