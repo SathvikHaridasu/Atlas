@@ -1,4 +1,5 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import Slider from '@react-native-community/slider';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -11,7 +12,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { GoalStep, GoalType, NewGoal } from '../types/goals';
@@ -27,7 +27,9 @@ export default function CreateGoalScreen() {
   const [steps, setSteps] = useState<GoalStep[]>([]);
   const [durationWeeks, setDurationWeeks] = useState<number>(4);
   const [startToday, setStartToday] = useState<boolean>(true);
-  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
 
   // Get default target value based on goal type
   const getDefaultTarget = (type: GoalType): number => {
@@ -95,7 +97,8 @@ export default function CreateGoalScreen() {
 
   // Auto-generate steps when stepCount or targetValue changes
   useEffect(() => {
-    const stepTarget = Math.round(targetValue / stepCount);
+    const roundedTarget = Math.round(targetValue);
+    const stepTarget = Math.round(roundedTarget / stepCount);
     const newSteps: GoalStep[] = [];
     for (let i = 0; i < stepCount; i++) {
       newSteps.push({
@@ -115,7 +118,8 @@ export default function CreateGoalScreen() {
   // Update step target when targetValue changes
   useEffect(() => {
     if (steps.length > 0) {
-      const stepTarget = Math.round(targetValue / stepCount);
+      const roundedTarget = Math.round(targetValue);
+      const stepTarget = Math.round(roundedTarget / stepCount);
       setSteps((prevSteps) =>
         prevSteps.map((step) => ({
           ...step,
@@ -136,12 +140,18 @@ export default function CreateGoalScreen() {
       return;
     }
 
+    const roundedTarget = Math.round(targetValue);
+    const roundedSteps = steps.map((step) => ({
+      ...step,
+      target: Math.round(step.target),
+    }));
+
     const newGoal: NewGoal = {
       title: goalTitle.trim(),
       type: goalType,
-      target: targetValue,
-      steps: steps,
-      durationWeeks: durationWeeks,
+      target: roundedTarget,
+      steps: roundedSteps,
+      durationWeeks: Math.round(durationWeeks),
       startDate: startToday ? new Date() : startDate || new Date(),
     };
 
@@ -163,7 +173,32 @@ export default function CreateGoalScreen() {
   };
 
   const formatTarget = (): string => {
-    return `${targetValue} ${getUnit(goalType)}`;
+    const roundedTarget = Math.round(targetValue);
+    return `${roundedTarget} ${getUnit(goalType)}`;
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      if (event.type === 'set' && selectedDate) {
+        setStartDate(selectedDate);
+      }
+    } else {
+      // iOS - update temp date as user scrolls
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
+    }
+  };
+
+  const handleIOSDatePickerDone = () => {
+    setStartDate(tempDate);
+    setShowDatePicker(false);
+  };
+
+  const handleOpenDatePicker = () => {
+    setTempDate(startDate);
+    setShowDatePicker(true);
   };
 
   const sliderRange = getSliderRange(goalType);
@@ -259,7 +294,7 @@ export default function CreateGoalScreen() {
               minimumValue={sliderRange.min}
               maximumValue={sliderRange.max}
               value={targetValue}
-              onValueChange={setTargetValue}
+              onValueChange={(v) => setTargetValue(Math.round(v))}
               minimumTrackTintColor={theme.accent}
               maximumTrackTintColor={theme.border}
               thumbTintColor={theme.accent}
@@ -301,7 +336,7 @@ export default function CreateGoalScreen() {
                 />
                 <View style={[styles.stepTarget, { backgroundColor: theme.border, marginLeft: 8 }]}>
                   <Text style={[styles.stepTargetText, { color: theme.text }]}>
-                    {step.target} {unit}
+                    {Math.round(step.target)} {unit}
                   </Text>
                 </View>
               </View>
@@ -366,16 +401,44 @@ export default function CreateGoalScreen() {
               </TouchableOpacity>
             </View>
             {!startToday && (
-              <TextInput
+              <TouchableOpacity
                 style={[
                   styles.input,
                   { color: theme.text, borderColor: theme.border, marginTop: 8 },
+                  styles.datePickerButton,
                 ]}
-                placeholder="Tap to pick date"
-                placeholderTextColor={theme.mutedText}
-                editable={false}
-                value={startDate ? formatDate(startDate) : ''}
+                onPress={handleOpenDatePicker}
+                activeOpacity={0.8}
+              >
+                <Text style={[{ color: startDate ? theme.text : theme.mutedText }]}>
+                  {startDate ? formatDate(startDate) : 'Choose a start date'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {showDatePicker && (
+              <DateTimePicker
+                value={Platform.OS === 'ios' ? tempDate : startDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                minimumDate={new Date()}
               />
+            )}
+            {Platform.OS === 'ios' && showDatePicker && (
+              <View style={styles.iosDatePickerActions}>
+                <TouchableOpacity
+                  style={[styles.iosDatePickerButton, { backgroundColor: theme.border }]}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text style={[{ color: theme.text }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.iosDatePickerButton, { backgroundColor: theme.accent }]}
+                  onPress={handleIOSDatePickerDone}
+                >
+                  <Text style={[{ color: '#020617' }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
             )}
             <Text style={[styles.hintText, { color: theme.mutedText, marginTop: 8 }]}>
               Set a clear end date so you know when you've won.
@@ -386,8 +449,8 @@ export default function CreateGoalScreen() {
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.cardLabel, { color: theme.text }]}>Summary</Text>
             <Text style={[styles.summaryText, { color: theme.mutedText }]}>
-              You'll complete {formatTarget()} over {stepCount} step{stepCount !== 1 ? 's' : ''} in{' '}
-              {durationWeeks} week{durationWeeks !== 1 ? 's' : ''}.
+              You'll complete {formatTarget()} over {Math.round(stepCount)} step{Math.round(stepCount) !== 1 ? 's' : ''} in{' '}
+              {Math.round(durationWeeks)} week{Math.round(durationWeeks) !== 1 ? 's' : ''}.
             </Text>
             <Text style={[styles.summaryText, { color: theme.mutedText, marginTop: 4 }]}>
               {startToday
@@ -579,6 +642,21 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  datePickerButton: {
+    justifyContent: 'center',
+  },
+  iosDatePickerActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    gap: 8,
+  },
+  iosDatePickerButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
   },
 });
 
