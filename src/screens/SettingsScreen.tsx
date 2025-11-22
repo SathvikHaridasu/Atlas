@@ -11,6 +11,23 @@ import {
 
 type ThemeOption = "system" | "light" | "dark";
 
+// Color palette
+const COLORS = {
+  accent: "#03CA59",
+  // Light theme
+  bgLight: "#050608",
+  cardLight: "#0B0F14",
+  borderLight: "rgba(3, 202, 89, 0.25)",
+  textPrimaryLight: "#F9FAFB",
+  textSecondaryLight: "#9CA3AF",
+  // Dark theme
+  bgDark: "#020308",
+  cardDark: "#050A0E",
+  borderDark: "rgba(3, 202, 89, 0.4)",
+  textPrimaryDark: "#F9FAFB",
+  textSecondaryDark: "#9CA3AF",
+};
+
 interface SettingsScreenProps {}
 
 const SettingsScreen: React.FC<SettingsScreenProps> = () => {
@@ -51,7 +68,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
     >
       {/* Profile header */}
       <View style={[styles.card, isDark && styles.cardDark]}>
-        <View style={styles.avatar}>
+        <View style={[styles.avatar, isDark && styles.avatarDark]}>
           <Text style={[styles.avatarText, isDark && styles.avatarTextDark]}>
             {mockUser.name.charAt(0)}
           </Text>
@@ -80,7 +97,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
 
       {/* Account section */}
       <View style={[styles.section, isDark && styles.sectionDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
+        <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>
           Account
         </Text>
 
@@ -113,7 +130,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
 
       {/* Notifications section */}
       <View style={[styles.section, isDark && styles.sectionDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
+        <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>
           Notifications
         </Text>
 
@@ -131,6 +148,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
           <Switch
             value={pushEnabled}
             onValueChange={setPushEnabled}
+            trackColor={{ false: "rgba(148,163,184,0.4)", true: COLORS.accent }}
+            thumbColor="#FFFFFF"
           />
         </View>
 
@@ -148,13 +167,15 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
           <Switch
             value={emailEnabled}
             onValueChange={setEmailEnabled}
+            trackColor={{ false: "rgba(148,163,184,0.4)", true: COLORS.accent }}
+            thumbColor="#FFFFFF"
           />
         </View>
       </View>
 
       {/* Appearance section */}
       <View style={[styles.section, isDark && styles.sectionDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
+        <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>
           Appearance
         </Text>
 
@@ -163,21 +184,24 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
             label="System"
             selected={theme === "system"}
             onPress={() => handleThemeChange("system")}
+            isDark={isDark}
           />
           <ThemeChip
             label="Light"
             selected={theme === "light"}
             onPress={() => handleThemeChange("light")}
+            isDark={isDark}
           />
           <ThemeChip
             label="Dark"
             selected={theme === "dark"}
             onPress={() => handleThemeChange("dark")}
+            isDark={isDark}
           />
         </View>
 
         <Text
-          style={[styles.helperText, isDark && styles.subtleTextDark]}
+          style={[styles.helperText, isDark && styles.helperTextDark]}
         >
           Choose how the app looks. "System" follows your device's appearance.
         </Text>
@@ -185,7 +209,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
 
       {/* App section */}
       <View style={[styles.section, isDark && styles.sectionDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
+        <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>
           App
         </Text>
 
@@ -247,16 +271,17 @@ interface ThemeChipProps {
   label: string;
   selected: boolean;
   onPress: () => void;
+  isDark: boolean;
 }
 
-const ThemeChip: React.FC<ThemeChipProps> = ({ label, selected, onPress }) => {
+const ThemeChip: React.FC<ThemeChipProps> = ({ label, selected, onPress, isDark }) => {
   return (
     <TouchableOpacity
-      style={[styles.chip, selected && styles.chipSelected]}
+      style={[styles.chip, selected && styles.chipSelected, isDark && styles.chipDark]}
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>
+      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected, isDark && !selected && styles.chipLabelDark]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -266,10 +291,10 @@ const ThemeChip: React.FC<ThemeChipProps> = ({ label, selected, onPress }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F7F7F7",
+    backgroundColor: COLORS.bgLight,
   },
   containerDark: {
-    backgroundColor: "#050509",
+    backgroundColor: COLORS.bgDark,
   },
   contentContainer: {
     padding: 16,
@@ -279,35 +304,37 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    backgroundColor: COLORS.cardLight,
+    borderRadius: 20,
     marginBottom: 24,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   cardDark: {
-    backgroundColor: "#111827",
-    shadowOpacity: 0.3,
+    backgroundColor: COLORS.cardDark,
+    borderColor: COLORS.borderDark,
   },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "rgba(15,23,42,0.9)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 16,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  avatarDark: {
+    borderColor: COLORS.borderDark,
   },
   avatarText: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#111827",
+    color: COLORS.textPrimaryLight,
   },
   avatarTextDark: {
-    color: "#F9FAFB",
+    color: COLORS.textPrimaryDark,
   },
   profileInfo: {
     flex: 1,
@@ -315,40 +342,44 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#111827",
+    color: COLORS.textPrimaryLight,
   },
   email: {
     marginTop: 4,
     fontSize: 14,
-    color: "#6B7280",
+    color: COLORS.textSecondaryLight,
   },
   username: {
     marginTop: 2,
     fontSize: 13,
-    color: "#9CA3AF",
+    color: COLORS.textSecondaryLight,
   },
   editButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: COLORS.accent,
+    backgroundColor: "transparent",
   },
   editButtonText: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#111827",
+    color: COLORS.accent,
   },
   section: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    backgroundColor: COLORS.cardLight,
+    borderRadius: 20,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 4,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   sectionDark: {
-    backgroundColor: "#111827",
+    backgroundColor: COLORS.cardDark,
+    borderColor: COLORS.borderDark,
   },
   sectionTitle: {
     fontSize: 14,
@@ -356,7 +387,10 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.6,
     marginBottom: 6,
-    color: "#6B7280",
+    color: COLORS.textSecondaryLight,
+  },
+  sectionTitleDark: {
+    color: COLORS.textSecondaryDark,
   },
   row: {
     flexDirection: "row",
@@ -366,12 +400,12 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 16,
-    fontWeight: "500",
-    color: "#111827",
+    fontWeight: "600",
+    color: COLORS.textPrimaryLight,
   },
   rowDescription: {
     fontSize: 13,
-    color: "#6B7280",
+    color: COLORS.textSecondaryLight,
     marginTop: 2,
     maxWidth: 260,
   },
@@ -385,27 +419,37 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "rgba(148, 163, 184, 0.4)",
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
+  chipDark: {
+    borderColor: "rgba(148, 163, 184, 0.4)",
+  },
   chipSelected: {
-    borderColor: "#111827",
-    backgroundColor: "#111827",
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.accent,
   },
   chipLabel: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#111827",
+    color: COLORS.textSecondaryLight,
+  },
+  chipLabelDark: {
+    color: COLORS.textSecondaryDark,
   },
   chipLabelSelected: {
-    color: "#F9FAFB",
+    color: "#020617",
   },
   helperText: {
     fontSize: 12,
-    color: "#6B7280",
+    color: COLORS.textSecondaryLight,
     marginTop: 8,
     marginBottom: 6,
+  },
+  helperTextDark: {
+    color: COLORS.textSecondaryDark,
   },
   footer: {
     marginTop: 8,
@@ -416,18 +460,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#EF4444",
+    borderColor: "rgba(239,68,68,0.6)",
+    backgroundColor: "transparent",
   },
   signOutText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#EF4444",
+    color: "rgba(239,68,68,0.6)",
   },
   textDark: {
-    color: "#F9FAFB",
+    color: COLORS.textPrimaryDark,
   },
   subtleTextDark: {
-    color: "#9CA3AF",
+    color: COLORS.textSecondaryDark,
   },
 });
 
