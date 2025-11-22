@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, metadata?: Record<string, any>) => Promise<{ user: User | null; error: AuthError | null }>;
+  signUp: (email: string, password: string, metadata?: Record<string, any>, scanData?: any) => Promise<{ user: User | null; error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ user: User | null; error: AuthError | null }>;
   signOut: () => Promise<{ error: AuthError | null }>;
   resetPassword: (email: string, redirectTo?: string) => Promise<{ error: AuthError | null }>;
@@ -45,8 +45,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, metadata?: Record<string, any>) => {
-    return authActions.signUp({ email, password, metadata });
+  const signUp = async (email: string, password: string, metadata?: Record<string, any>, scanData?: any) => {
+    const signUpMetadata = scanData ? { ...metadata, scanData } : metadata;
+    return authActions.signUp({ email, password, metadata: signUpMetadata });
   };
 
   const signIn = async (email: string, password: string) => {

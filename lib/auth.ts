@@ -10,6 +10,7 @@ export interface SignUpData {
   email: string;
   password: string;
   metadata?: Record<string, any>;
+  scanData?: any; // Data from scan to be stored in profile
 }
 
 export interface SignInData {
@@ -37,13 +38,19 @@ export async function signUp({ email, password, metadata }: SignUpData): Promise
 
     // Create profile entry if user was created successfully
     if (data.user) {
+      const profileData: Record<string, any> = {
+        user_id: data.user.id,
+        email: data.user.email,
+      };
+      
+      // Add scanData to profile if provided
+      if (metadata?.scanData) {
+        profileData.scanData = metadata.scanData;
+      }
+      
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
-          user_id: data.user.id,
-          email: data.user.email,
-          // Add any default profile fields here
-        })
+        .insert(profileData)
         .select()
         .single();
 

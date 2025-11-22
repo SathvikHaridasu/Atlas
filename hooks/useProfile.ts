@@ -7,6 +7,7 @@ export interface Profile {
   email?: string;
   full_name?: string;
   avatar_url?: string;
+  scanData?: any; // Data from scan stored in profile
   created_at?: string;
   updated_at?: string;
   [key: string]: any; // Allow additional profile fields
