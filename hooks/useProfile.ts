@@ -3,14 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
 export interface Profile {
-  user_id: string;
-  email?: string;
-  full_name?: string;
-  avatar_url?: string;
-  scanData?: any; // Data from scan stored in profile
+  id: string;
   created_at?: string;
-  updated_at?: string;
-  [key: string]: any; // Allow additional profile fields
+  username?: string;
+  bio?: string;
+  email?: string;
 }
 
 export function useProfile() {
@@ -34,7 +31,7 @@ export function useProfile() {
         const { data, error: fetchError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('id', user!.id)
           .single();
 
         if (fetchError) {
@@ -43,11 +40,11 @@ export function useProfile() {
             const defaultUsername =
               user.user_metadata?.full_name ||
               (user.email ? user.email.split('@')[0] : 'Runner');
-            
+
             const { data: newProfile, error: createError } = await supabase
               .from('profiles')
               .insert({
-                user_id: user.id,
+                id: user!.id,
                 username: defaultUsername,
               })
               .select()
@@ -83,7 +80,7 @@ export function useProfile() {
       const { error: updateError } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('user_id', user.id);
+        .eq('id', user!.id);
 
       if (updateError) {
         throw updateError;
@@ -93,7 +90,7 @@ export function useProfile() {
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('id', user!.id)
         .single();
 
       if (fetchError) {

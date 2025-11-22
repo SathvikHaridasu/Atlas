@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 
-export default function HomeScreen() {
+export default function RunTrackingScreen() {
   return (
     <View style={styles.container}>
-      <Text>Home</Text>
+      <Text>Run Tracking</Text>
     </View>
   );
 }
