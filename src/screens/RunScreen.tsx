@@ -1,37 +1,555 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import MapView, { Circle, LatLng, MapPressEvent, Marker, Polyline, Region } from "react-native-maps";
 
-export default function RunScreen() {
+const METERS_PER_POINT = 10; // 1 point for every 10 meters
+const POINTS_KEY = "userPoints";
+
+const RunScreen: React.FC = () => {
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [region, setRegion] = useState<Region | undefined>(undefined);
+  const [position, setPosition] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const mapRef = useRef<MapView | null>(null);
+  const locationSubscription = useRef<Location.LocationSubscription | null>(null);
+
+  // Run tracking state
+  const [isRunning, setIsRunning] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [totalDistanceMeters, setTotalDistanceMeters] = useState(0);
+  const [averagePace, setAveragePace] = useState<string>("-");
+  const [points, setPoints] = useState(0);
+  const [isPlanningRoute, setIsPlanningRoute] = useState(false);
+  const [routePoints, setRoutePoints] = useState<LatLng[]>([]);
+  const [pathCoords, setPathCoords] = useState<LatLng[]>([]);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const previousPositionRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const leftoverMetersRef = useRef(0);
+  const elapsedSecondsRef = useRef(0);
+
+  // Helper functions
+  const formatTime = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+
+    if (h > 0) {
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
+  const getDistanceMeters = (
+    from: { latitude: number; longitude: number },
+    to: { latitude: number; longitude: number }
+  ): number => {
+    const toRad = (value: number) => (value * Math.PI) / 180;
+
+    const R = 6371000; // meters
+    const dLat = toRad(to.latitude - from.latitude);
+    const dLon = toRad(to.longitude - from.longitude);
+    const lat1 = toRad(from.latitude);
+    const lat2 = toRad(to.latitude);
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  };
+
+  const awardPointsForDistance = (segmentMeters: number) => {
+    leftoverMetersRef.current += segmentMeters;
+
+    const earnedPoints = Math.floor(leftoverMetersRef.current / METERS_PER_POINT);
+    if (earnedPoints <= 0) return;
+
+    leftoverMetersRef.current = leftoverMetersRef.current % METERS_PER_POINT;
+
+    setPoints((prev) => {
+      const updated = prev + earnedPoints;
+      AsyncStorage.setItem(POINTS_KEY, String(updated)).catch((e) =>
+        console.warn("Failed to save points", e)
+      );
+      return updated;
+    });
+  };
+
+  // Load saved points on mount
+  useEffect(() => {
+    const loadPoints = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(POINTS_KEY);
+        if (stored) {
+          setPoints(parseInt(stored, 10) || 0);
+        }
+      } catch (e) {
+        console.warn("Failed to load points", e);
+      }
+    };
+
+    loadPoints();
+  }, []);
+
+  // Timer logic
+  useEffect(() => {
+    if (isRunning) {
+      // Start timer
+      timerRef.current = setInterval(() => {
+        setElapsedSeconds((prev) => {
+          const newValue = prev + 1;
+          elapsedSecondsRef.current = newValue;
+          return newValue;
+        });
+      }, 1000);
+    } else if (timerRef.current) {
+      // Pause timer
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isRunning]);
+
+  useEffect(() => {
+    const setupLocation = async () => {
+      // Ask for permissions
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setHasPermission(false);
+        Alert.alert("Location required", "Enable location permissions to track your run.");
+        return;
+      }
+
+      setHasPermission(true);
+
+      // Get current position once
+      const current = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = current.coords;
+      setPosition({ latitude, longitude });
+      setRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+
+      // Start watching position
+      locationSubscription.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 2000, // ms
+          distanceInterval: 5, // meters
+        },
+        (loc) => {
+          const { latitude, longitude } = loc.coords;
+          const currentPos = { latitude, longitude };
+          setPosition(currentPos);
+
+          // Add to path trail when running
+          if (isRunning) {
+            setPathCoords((prev) => {
+              // Skip if it's the same as last to avoid duplicates
+              const last = prev[prev.length - 1];
+              if (last && last.latitude === currentPos.latitude && last.longitude === currentPos.longitude) {
+                return prev;
+              }
+              return [...prev, currentPos];
+            });
+          }
+
+          // Compute distance, pace, and points if running
+          if (previousPositionRef.current && isRunning) {
+            const prev = previousPositionRef.current;
+            const segmentDistance = getDistanceMeters(prev, currentPos);
+
+            if (segmentDistance > 0) {
+              setTotalDistanceMeters((prevTotal) => {
+                const newTotal = prevTotal + segmentDistance;
+
+                // Update average pace if we have some distance and time
+                const distanceKm = newTotal / 1000;
+                const currentElapsed = elapsedSecondsRef.current;
+                if (distanceKm > 0 && currentElapsed > 0) {
+                  const secPerKm = currentElapsed / distanceKm;
+                  const paceMin = Math.floor(secPerKm / 60);
+                  const paceSec = Math.round(secPerKm % 60);
+                  setAveragePace(`${String(paceMin).padStart(2, "0")}:${String(paceSec).padStart(2, "0")}`);
+                }
+
+                // Award points for this segment
+                awardPointsForDistance(segmentDistance);
+
+                return newTotal;
+              });
+            }
+          }
+
+          // Update previous position
+          if (!previousPositionRef.current || isRunning) {
+            previousPositionRef.current = currentPos;
+          }
+
+          // Smoothly move the map to follow the user
+          if (mapRef.current) {
+            mapRef.current.animateToRegion(
+              {
+                latitude,
+                longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              },
+              500
+            );
+          }
+        }
+      );
+    };
+
+    setupLocation();
+
+    return () => {
+      // Cleanup location watcher
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+      }
+      previousPositionRef.current = null;
+    };
+  }, [isRunning]);
+
+  if (hasPermission === null || !region) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2563EB" />
+      </View>
+    );
+  }
+
+  const handleToggleRun = () => {
+    setIsRunning((prev) => {
+      const next = !prev;
+
+      if (next) {
+        // Starting a new run – clear previous path
+        setPathCoords([]);
+        previousPositionRef.current = null;
+        // Optional: reset stats for a fresh run
+        // setElapsedSeconds(0);
+        // setTotalDistanceMeters(0);
+        // setAveragePace("-");
+      }
+
+      return next;
+    });
+  };
+
+  const handleToggleRoutePlanning = () => {
+    setIsPlanningRoute((prev) => !prev);
+    if (isPlanningRoute) {
+      // Clearing route when toggling off
+      setRoutePoints([]);
+    }
+  };
+
+  const handleMapPressForRoute = (event: MapPressEvent) => {
+    if (!isPlanningRoute) return;
+
+    const { coordinate } = event.nativeEvent;
+    setRoutePoints((prev) => [...prev, coordinate]);
+  };
+
+  if (hasPermission === false) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#03CA59" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const gpsConnected = position !== null;
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Start a Run</Text>
-        <Text style={styles.subtitle}>Track a new run and claim territory.</Text>
+      <MapView
+        ref={(ref) => (mapRef.current = ref)}
+        style={styles.map}
+        provider="google"
+        showsUserLocation
+        followsUserLocation
+        initialRegion={region}
+        mapType="standard"
+        onPress={handleMapPressForRoute}
+      >
+        {position && (
+          <>
+            <Marker coordinate={position} />
+            <Circle
+              center={position}
+              radius={20}
+              strokeWidth={1}
+              strokeColor="rgba(3, 202, 89, 0.8)"
+              fillColor="rgba(3, 202, 89, 0.2)"
+            />
+          </>
+        )}
+        {/* LIVE RUN TRAIL */}
+        {pathCoords.length > 1 && (
+          <Polyline
+            coordinates={pathCoords}
+            strokeWidth={5}
+            strokeColor="#03CA59"
+          />
+        )}
+        {/* Planned route (if route planning mode) */}
+        {routePoints.length > 1 && (
+          <Polyline
+            coordinates={routePoints}
+            strokeWidth={3}
+            strokeColor="rgba(255,255,255,0.8)"
+            lineDashPattern={[10, 5]}
+          />
+        )}
+      </MapView>
+
+      {/* Points pill */}
+      <View style={styles.pointsPill}>
+        <Ionicons name="trophy" size={16} color="#03CA59" style={styles.pointsIcon} />
+        <View>
+          <Text style={styles.pointsLabel}>Points</Text>
+          <Text style={styles.pointsValue}>{points.toLocaleString()}</Text>
+        </View>
+      </View>
+
+      {/* Stats card */}
+      <View style={styles.statsCard}>
+        {/* GPS status */}
+        <View style={styles.gpsStatusRow}>
+          <MaterialIcons
+            name={gpsConnected ? "gps-fixed" : "signal-cellular-off"}
+            size={16}
+            color={gpsConnected ? "#03CA59" : "#FF4C4C"}
+          />
+          <Text style={[styles.gpsText, gpsConnected ? styles.gpsTextOk : styles.gpsTextError]}>
+            {gpsConnected ? "GPS Connected" : "No GPS signal"}
+          </Text>
+        </View>
+
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statBlock}>
+            <Text style={styles.statValue}>{formatTime(elapsedSeconds)}</Text>
+            <Text style={styles.statLabel}>Time</Text>
+          </View>
+          <View style={styles.statBlock}>
+            <Text style={styles.statValue}>{averagePace}</Text>
+            <Text style={styles.statLabel}>Split avg. (/km)</Text>
+          </View>
+          <View style={styles.statBlock}>
+            <Text style={styles.statValue}>{(totalDistanceMeters / 1000).toFixed(2)}</Text>
+            <Text style={styles.statLabel}>Distance (km)</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Bottom controls */}
+      <View style={styles.controlsContainer}>
+        <View style={styles.controlsRow}>
+          {/* Run button (left) */}
+          <View style={styles.smallButtonContainer}>
+            <TouchableOpacity style={styles.smallCircleButton} onPress={handleToggleRun} activeOpacity={0.8}>
+              <Ionicons name="walk-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.controlLabel}>Run</Text>
+          </View>
+
+          {/* Play button (center) */}
+          <TouchableOpacity style={styles.bigCircleButton} onPress={handleToggleRun} activeOpacity={0.9}>
+            {isRunning ? (
+              <MaterialIcons name="pause" size={32} color="#000000" />
+            ) : (
+              <MaterialIcons name="play-arrow" size={32} color="#000000" />
+            )}
+          </TouchableOpacity>
+
+          {/* Add Route button (right) */}
+          <View style={styles.smallButtonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.smallCircleButton,
+                isPlanningRoute && styles.smallCircleButtonActive,
+              ]}
+              onPress={handleToggleRoutePlanning}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="alt-route" size={24} color={isPlanningRoute ? "#03CA59" : "#FFFFFF"} />
+            </TouchableOpacity>
+            <Text style={styles.controlLabel}>Add Route</Text>
+          </View>
+        </View>
       </View>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#000",
   },
-  content: {
+  map: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  subtitle: {
+  // Points pill
+  pointsPill: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    zIndex: 10,
+  },
+  pointsIcon: {
+    marginRight: 8,
+  },
+  pointsLabel: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    fontWeight: "500",
+  },
+  pointsValue: {
     fontSize: 16,
-    color: '#555',
-    marginTop: 6,
+    color: "#03CA59",
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  // Stats card
+  statsCard: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 130,
+    backgroundColor: "#111",
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 10,
+  },
+  gpsStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  gpsText: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginLeft: 6,
+  },
+  gpsTextError: {
+    color: "#FF4C4C",
+  },
+  gpsTextOk: {
+    color: "#03CA59",
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  statBlock: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    opacity: 0.7,
+  },
+  // Bottom controls
+  controlsContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    paddingTop: 12,
+    zIndex: 10,
+  },
+  controlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  smallButtonContainer: {
+    alignItems: "center",
+  },
+  smallCircleButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#181818",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  smallCircleButtonActive: {
+    backgroundColor: "rgba(3, 202, 89, 0.2)",
+    borderWidth: 1,
+    borderColor: "#03CA59",
+  },
+  bigCircleButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#03CA59",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#03CA59",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  controlLabel: {
+    fontSize: 10,
+    color: "#FFFFFF",
+    marginTop: 4,
+    fontWeight: "500",
   },
 });
 
+export default RunScreen;
