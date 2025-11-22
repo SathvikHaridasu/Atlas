@@ -1,8 +1,8 @@
 import { AuthError, Session, User } from '@supabase/supabase-js';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { Profile } from '../hooks/useProfile';
 import * as authActions from '../lib/auth';
 import { supabase } from '../lib/supabaseClient';
+import { Profile } from '../hooks/useProfile';
 
 interface AuthContextType {
   user: User | null;
@@ -40,20 +40,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const { data, error: fetchError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user!.id)
+          .eq('user_id', user.id)
           .single();
 
         if (fetchError) {
           // If profile doesn't exist, create one
           if (fetchError.code === 'PGRST116') {
             const defaultUsername =
-              user!.user_metadata?.full_name ||
-              (user!.email ? user!.email.split('@')[0] : 'Runner');
-
+              user.user_metadata?.full_name ||
+              (user.email ? user.email.split('@')[0] : 'Runner');
+            
             const { data: newProfile, error: createError } = await supabase
               .from('profiles')
               .insert({
-                id: user!.id,
+                user_id: user.id,
                 username: defaultUsername,
               })
               .select()
@@ -125,7 +125,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single();
 
       if (profileError) {
@@ -134,11 +134,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const defaultUsername =
             user.user_metadata?.full_name ||
             (user.email ? user.email.split('@')[0] : 'Runner');
-
+          
           const { data: newProfile, error: createError } = await supabase
             .from('profiles')
             .insert({
-              id: user.id,
+              user_id: user.id,
               username: defaultUsername,
             })
             .select()
