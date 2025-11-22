@@ -1,18 +1,17 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useScan } from '@/contexts/ScanContext';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function AuthScreen() {
@@ -20,11 +19,16 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
-  const { scanData, clearScanData } = useScan();
+  const { signIn, signUp, user } = useAuth();
   const router = useRouter();
 
-  // Get scanData from ScanContext if available (set when redirecting from scan screen)
+  // Redirect if already signed in
+  React.useEffect(() => {
+    if (user) {
+      router.replace('/(tabs)');
+    }
+  }, [user, router]);
+
   const handleAuth = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
@@ -40,18 +44,15 @@ export default function AuthScreen() {
 
     try {
       if (isSignUp) {
-        // For sign-up, pass scanData if available from scan context
-        const { user, error } = await signUp(email, password, undefined, scanData || undefined);
+        const { user, error } = await signUp(email, password);
         
         if (error) {
           Alert.alert('Sign Up Error', error.message);
         } else if (user) {
-          // Clear scan data after successful sign-up
-          if (scanData) clearScanData();
-          Alert.alert('Success', 'Account created! Redirecting to your portal...', [
+          Alert.alert('Success', 'Account created! Redirecting to home...', [
             {
               text: 'OK',
-              onPress: () => router.replace('/portal'),
+              onPress: () => router.replace('/(tabs)'),
             },
           ]);
         }
@@ -61,8 +62,7 @@ export default function AuthScreen() {
         if (error) {
           Alert.alert('Sign In Error', error.message);
         } else if (user) {
-          // ScanData will be saved to profile in portal screen useEffect
-          router.replace('/portal');
+          router.replace('/(tabs)');
         }
       }
     } catch (err) {
@@ -79,11 +79,11 @@ export default function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
+          <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
           <Text style={styles.subtitle}>
             {isSignUp
-              ? 'Sign up to access your personalized portal'
-              : 'Sign in to continue to your portal'}
+              ? 'Create a new account to get started'
+              : 'Sign in to continue'}
           </Text>
 
           <View style={styles.form}>
@@ -111,6 +111,12 @@ export default function AuthScreen() {
               editable={!loading}
             />
 
+            {isSignUp && (
+              <Text style={styles.passwordHint}>
+                Password must be at least 6 characters
+              </Text>
+            )}
+
             <TouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleAuth}
@@ -118,20 +124,29 @@ export default function AuthScreen() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>{isSignUp ? 'Sign Up' : 'Sign In'}</Text>
+                <Text style={styles.buttonText}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.switchButton}
-              onPress={() => setIsSignUp(!isSignUp)}
-              disabled={loading}>
-              <Text style={styles.switchText}>
-                {isSignUp
-                  ? 'Already have an account? Sign In'
-                  : "Don't have an account? Sign Up"}
-              </Text>
-            </TouchableOpacity>
+            {!isSignUp && (
+              <TouchableOpacity
+                style={styles.createAccountButton}
+                onPress={() => setIsSignUp(true)}
+                disabled={loading}>
+                <Text style={styles.createAccountText}>No account? Create one here!</Text>
+              </TouchableOpacity>
+            )}
+
+            {isSignUp && (
+              <TouchableOpacity
+                style={styles.switchButton}
+                onPress={() => setIsSignUp(false)}
+                disabled={loading}>
+                <Text style={styles.switchText}>
+                  Already have an account? Sign In
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -193,6 +208,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: -8,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  createAccountButton: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  createAccountText: {
+    color: '#007AFF',
+    fontSize: 15,
+    fontWeight: '500',
   },
   switchButton: {
     marginTop: 16,

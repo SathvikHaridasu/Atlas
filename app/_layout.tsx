@@ -2,10 +2,10 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { ScanProvider } from '@/contexts/ScanContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
@@ -21,23 +21,36 @@ function RootLayoutNav() {
     if (loading) return;
 
     const inAuthGroup = segments[0] === 'auth';
-    const inPortalGroup = segments[0] === 'portal';
-    const inScanGroup = segments[0] === 'scan';
+    const inTabsGroup = segments[0] === '(tabs)';
 
-    if (!user && !inAuthGroup && !inScanGroup) {
-      // Redirect to auth if not logged in (except when on auth or scan screens)
-      router.replace('/auth');
-    } else if (user && inAuthGroup) {
-      // Redirect to portal if logged in and on auth screen
-      router.replace('/portal');
+    // If not authenticated, redirect to auth
+    if (!user) {
+      if (!inAuthGroup) {
+        router.replace('/auth');
+      }
+    } 
+    // If authenticated
+    else {
+      // Redirect away from auth screen to home
+      if (inAuthGroup) {
+        router.replace('/(tabs)');
+      }
+      // Tabs are accessible when authenticated
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, router]);
+
+  // Show loading screen while checking auth state
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   return (
     <Stack>
       <Stack.Screen name="auth" options={{ headerShown: false }} />
-      <Stack.Screen name="scan" options={{ headerShown: false }} />
-      <Stack.Screen name="portal" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
     </Stack>
@@ -49,12 +62,19 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ScanProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <RootLayoutNav />
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </ScanProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <RootLayoutNav />
+        <StatusBar style="auto" />
+      </ThemeProvider>
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+});
