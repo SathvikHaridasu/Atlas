@@ -46,11 +46,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (fetchError) {
           // If profile doesn't exist, create one
           if (fetchError.code === 'PGRST116') {
+            const defaultUsername =
+              user.user_metadata?.full_name ||
+              (user.email ? user.email.split('@')[0] : 'Runner');
+            
             const { data: newProfile, error: createError } = await supabase
               .from('profiles')
               .insert({
                 user_id: user.id,
-                email: user.email,
+                username: defaultUsername,
               })
               .select()
               .single();
@@ -125,11 +129,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
         .single();
 
       if (profileError) {
-        console.warn('Profile fetch error:', profileError.message);
-      }
+        // If profile doesn't exist, create one
+        if (profileError.code === 'PGRST116') {
+          const defaultUsername =
+            user.user_metadata?.full_name ||
+            (user.email ? user.email.split('@')[0] : 'Runner');
+          
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: user.id,
+              username: defaultUsername,
+            })
+            .select()
+            .single();
 
-      setUser(user);
-      setProfile(profile ?? null);
+          if (createError) {
+            console.error('Error creating profile:', createError);
+            setUser(user);
+            setProfile(null);
+          } else {
+            setUser(user);
+            setProfile(newProfile);
+          }
+        } else {
+          console.warn('Profile fetch error:', profileError.message);
+          setUser(user);
+          setProfile(null);
+        }
+      } else {
+        setUser(user);
+        setProfile(profile);
+      }
+      
       setLoading(false);
       return {};
     } catch (e: any) {

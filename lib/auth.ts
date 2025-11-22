@@ -38,9 +38,13 @@ export async function signUp({ email, password, metadata }: SignUpData): Promise
 
     // Create profile entry if user was created successfully
     if (data.user) {
+      const defaultUsername =
+        data.user.user_metadata?.full_name ||
+        (data.user.email ? data.user.email.split('@')[0] : 'Runner');
+      
       const profileData: Record<string, any> = {
         user_id: data.user.id,
-        email: data.user.email,
+        username: defaultUsername,
       };
       
       // Add scanData to profile if provided

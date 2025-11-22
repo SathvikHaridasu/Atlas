@@ -40,11 +40,15 @@ export function useProfile() {
         if (fetchError) {
           // If profile doesn't exist, create one
           if (fetchError.code === 'PGRST116') {
+            const defaultUsername =
+              user.user_metadata?.full_name ||
+              (user.email ? user.email.split('@')[0] : 'Runner');
+            
             const { data: newProfile, error: createError } = await supabase
               .from('profiles')
               .insert({
                 user_id: user.id,
-                email: user.email,
+                username: defaultUsername,
               })
               .select()
               .single();
