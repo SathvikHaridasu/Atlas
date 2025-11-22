@@ -1,0 +1,201 @@
+import { useNavigation } from "@react-navigation/native";
+import React, { useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import MapView, { Polygon, Region } from "react-native-maps";
+
+import { SAMPLE_ZONES } from "../lib/sampleZones";
+
+import { useAuth } from "../../contexts/AuthContext";
+
+const initialRegion: Region = {
+  latitude: 43.468,
+  longitude: -80.53,
+  latitudeDelta: 0.12,
+  longitudeDelta: 0.12,
+};
+
+type MapMode = "global" | "mine";
+
+// Removed sampleWaterlooTiles - now using SAMPLE_ZONES from sampleZones.ts
+
+const MasterMapScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const { session } = useAuth();
+
+  const [region, setRegion] = useState<Region>(initialRegion);
+  const [mapMode, setMapMode] = useState<MapMode>("global");
+
+  const handleRegionChangeComplete = (reg: Region) => {
+    setRegion(reg);
+  };
+
+  return (
+    <View style={styles.container}>
+      <MapView
+        style={StyleSheet.absoluteFill}
+        provider="google"
+        initialRegion={initialRegion}
+        onRegionChangeComplete={handleRegionChangeComplete}
+      >
+        {SAMPLE_ZONES.map((zone) => {
+          const isLHSS = zone.group === "LHSS";
+          const isWCI = zone.group === "WCI";
+
+          let strokeColor = "rgba(255,255,255,1)";
+          let fillColor = "rgba(255,255,255,0.16)";
+
+          if (isLHSS) {
+            strokeColor = "rgba(0,196,255,1)"; // LHSS cyan
+            fillColor = "rgba(0,196,255,0.25)";
+          }
+
+          if (isWCI) {
+            strokeColor = "rgba(255,122,0,1)"; // WCI orange
+            fillColor = "rgba(255,122,0,0.25)";
+          }
+
+          return (
+            <Polygon
+              key={zone.id}
+              coordinates={zone.coordinates}
+              strokeWidth={3}
+              strokeColor={strokeColor}
+              fillColor={fillColor}
+            />
+          );
+        })}
+      </MapView>
+
+      {/* Mode toggle */}
+      <View style={styles.modeToggleContainer}>
+        <TouchableOpacity
+          style={[
+            styles.modeToggleButton,
+            mapMode === "global" && styles.modeToggleButtonActive,
+          ]}
+          onPress={() => setMapMode("global")}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.modeToggleText,
+              mapMode === "global" && styles.modeToggleTextActive,
+            ]}
+          >
+            Global
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.modeToggleButton,
+            mapMode === "mine" && styles.modeToggleButtonActive,
+          ]}
+          onPress={() => setMapMode("mine")}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.modeToggleText,
+              mapMode === "mine" && styles.modeToggleTextActive,
+            ]}
+          >
+            My territory
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Legend */}
+      <View style={styles.legendContainer}>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendSwatch, { backgroundColor: "#00C4FF" }]} />
+          <Text style={styles.legendText}>LHSS Territory</Text>
+        </View>
+
+        <View style={styles.legendRow}>
+          <View style={[styles.legendSwatch, { backgroundColor: "#FF7A00" }]} />
+          <Text style={styles.legendText}>WCI Territory</Text>
+        </View>
+      </View>
+
+      {/* Close button */}
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={() => navigation.goBack()}
+      >
+        <Text style={styles.closeText}>Close</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+export default MasterMapScreen;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  closeText: {
+    color: "#fff",
+    fontSize: 13,
+  },
+  modeToggleContainer: {
+    position: "absolute",
+    top: 50,
+    alignSelf: "center",
+    flexDirection: "row",
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderRadius: 999,
+    padding: 4,
+  },
+  modeToggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  modeToggleButtonActive: {
+    backgroundColor: "rgba(3,202,89,0.9)",
+  },
+  modeToggleText: {
+    color: "#cccccc",
+    fontSize: 12,
+  },
+  modeToggleTextActive: {
+    color: "#000000",
+    fontWeight: "600",
+  },
+  legendContainer: {
+    position: "absolute",
+    top: 90,
+    left: 20,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    padding: 10,
+    borderRadius: 12,
+  },
+  legendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  legendSwatch: {
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    marginRight: 8,
+  },
+  legendText: {
+    color: "#fff",
+    fontSize: 12,
+  },
+});
+

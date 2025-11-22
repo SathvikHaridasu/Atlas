@@ -119,6 +119,18 @@ export default function HomeScreen() {
           </Text>
         </View>
 
+        {/* Territory Map card */}
+        <TouchableOpacity
+          style={[styles.masterMapCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => navigation.navigate("MasterMap" as never)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.masterMapTitle, { color: theme.text }]}>Territory Map</Text>
+          <Text style={[styles.masterMapSubtitle, { color: theme.mutedText }]}>
+            See who controls your neighbourhood.
+          </Text>
+        </TouchableOpacity>
+
         {/* Quick actions */}
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Quick actions</Text>
         <View style={styles.quickRow}>
@@ -274,5 +286,19 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 12,
     textAlign: 'center',
+  },
+  masterMapCard: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  masterMapTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  masterMapSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
   },
 });

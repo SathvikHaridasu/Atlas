@@ -1,11 +1,20 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import MapView, { Circle, LatLng, MapPressEvent, Marker, Polyline, Region } from "react-native-maps";
+import MapView, { Circle, LatLng, MapPressEvent, Marker, Polygon, Polyline, Region } from "react-native-maps";
+import { useAuth } from "../../contexts/AuthContext";
 import { useRunStats } from "../contexts/RunStatsContext";
 import { useAppTheme } from "../contexts/ThemeContext";
+import {
+  captureTerritoryForRun,
+  fetchTerritoriesForRegion,
+  tileToBounds,
+  type LatLng as TerritoryLatLng,
+  type TerritoryTile,
+} from "../lib/territoryHelper";
 
 const METERS_PER_POINT = 10; // 1 point for every 10 meters
 const POINTS_KEY = "userPoints";
@@ -13,6 +22,8 @@ const POINTS_KEY = "userPoints";
 const RunScreen: React.FC = () => {
   const { updateStats } = useRunStats();
   const { theme } = useAppTheme();
+  const { session } = useAuth();
+  const navigation = useNavigation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [region, setRegion] = useState<Region | undefined>(undefined);
   const [position, setPosition] = useState<{
@@ -31,6 +42,7 @@ const RunScreen: React.FC = () => {
   const [isPlanningRoute, setIsPlanningRoute] = useState(false);
   const [routePoints, setRoutePoints] = useState<LatLng[]>([]);
   const [pathCoords, setPathCoords] = useState<LatLng[]>([]);
+  const [territoryTiles, setTerritoryTiles] = useState<TerritoryTile[]>([]);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const previousPositionRef = useRef<{ latitude: number; longitude: number } | null>(null);
@@ -96,7 +108,6 @@ const RunScreen: React.FC = () => {
         if (stored) {
           const loadedPoints = parseInt(stored, 10) || 0;
           setPoints(loadedPoints);
-          updateStats({ points: loadedPoints });
         }
       } catch (e) {
         console.warn("Failed to load points", e);
@@ -104,7 +115,7 @@ const RunScreen: React.FC = () => {
     };
 
     loadPoints();
-  }, [updateStats]);
+  }, []);
 
   // Timer logic
   useEffect(() => {
@@ -114,7 +125,6 @@ const RunScreen: React.FC = () => {
         setElapsedSeconds((prev) => {
           const newValue = prev + 1;
           elapsedSecondsRef.current = newValue;
-          updateStats({ elapsedSeconds: newValue });
           return newValue;
         });
       }, 1000);
@@ -187,7 +197,6 @@ const RunScreen: React.FC = () => {
             if (segmentDistance > 0) {
               setTotalDistanceMeters((prevTotal) => {
                 const newTotal = prevTotal + segmentDistance;
-                updateStats({ totalDistanceMeters: newTotal });
 
                 // Update average pace if we have some distance and time
                 const distanceKm = newTotal / 1000;
@@ -239,6 +248,32 @@ const RunScreen: React.FC = () => {
     };
   }, [isRunning]);
 
+  // Fetch territory tiles whenever the map region changes
+  useEffect(() => {
+    const loadTerritories = async () => {
+      if (!region) return;
+
+      const north = region.latitude + region.latitudeDelta / 2;
+      const south = region.latitude - region.latitudeDelta / 2;
+      const east = region.longitude + region.longitudeDelta / 2;
+      const west = region.longitude - region.longitudeDelta / 2;
+
+      const tiles = await fetchTerritoriesForRegion({ north, south, east, west });
+      setTerritoryTiles(tiles);
+    };
+
+    loadTerritories();
+  }, [region]);
+
+  // Sync stats to RunStatsContext whenever they change
+  useEffect(() => {
+    updateStats({
+      points,
+      totalDistanceMeters,
+      elapsedSeconds,
+    });
+  }, [points, totalDistanceMeters, elapsedSeconds, updateStats]);
+
   if (hasPermission === null || !region) {
     return (
       <View style={styles.center}>
@@ -249,7 +284,21 @@ const RunScreen: React.FC = () => {
 
   const handleToggleRun = () => {
     setIsRunning((prev) => {
+      const wasRunning = prev;
       const next = !prev;
+
+      // If we were running and now we stop -> capture territory for this run
+      if (wasRunning && !next) {
+        const userId = session?.user?.id;
+        if (userId && pathCoords.length > 1 && totalDistanceMeters > 0) {
+          // Cast pathCoords to TerritoryLatLng[] if types differ
+          captureTerritoryForRun(
+            userId,
+            pathCoords as TerritoryLatLng[],
+            totalDistanceMeters
+          );
+        }
+      }
 
       if (next) {
         // Starting a new run – clear previous path
@@ -333,6 +382,29 @@ const RunScreen: React.FC = () => {
             lineDashPattern={[10, 5]}
           />
         )}
+        {/* Territory tiles */}
+        {territoryTiles.map((tile) => {
+          const bounds = tileToBounds(tile.tile_x, tile.tile_y);
+
+          const coords = [
+            { latitude: bounds.south, longitude: bounds.west },
+            { latitude: bounds.south, longitude: bounds.east },
+            { latitude: bounds.north, longitude: bounds.east },
+            { latitude: bounds.north, longitude: bounds.west },
+          ];
+
+          const isMine = tile.owner_user_id === session?.user?.id;
+
+          return (
+            <Polygon
+              key={tile.id}
+              coordinates={coords}
+              strokeWidth={3}
+              strokeColor={isMine ? "rgba(3, 202, 89, 1)" : "rgba(255, 64, 64, 1)"}
+              fillColor={isMine ? "rgba(3, 202, 89, 0.22)" : "rgba(255, 64, 64, 0.22)"}
+            />
+          );
+        })}
       </MapView>
 
       {/* Points pill */}
@@ -343,6 +415,15 @@ const RunScreen: React.FC = () => {
           <Text style={[styles.pointsValue, { color: theme.accent }]}>{points.toLocaleString()}</Text>
         </View>
       </View>
+
+      {/* Master Map FAB */}
+      <TouchableOpacity
+        style={styles.masterMapFab}
+        onPress={() => navigation.navigate("MasterMap" as never)}
+        activeOpacity={0.8}
+      >
+        <MaterialIcons name="map" size={22} color="#ffffff" />
+      </TouchableOpacity>
 
       {/* Stats card */}
       <View style={[styles.statsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -569,6 +650,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 4,
     fontWeight: "500",
+  },
+  masterMapFab: {
+    position: "absolute",
+    top: 50,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.85)",
+    zIndex: 10,
   },
 });
 
