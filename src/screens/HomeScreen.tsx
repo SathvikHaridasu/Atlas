@@ -138,6 +138,12 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Welcome message */}
+        <View style={styles.welcomeContainer}>
+          <Text style={[styles.welcomeLabel, { color: theme.mutedText }]}>Welcome back,</Text>
+          <Text style={[styles.welcomeName, { color: theme.text }]}>{displayName}</Text>
+        </View>
+
         {/* Today stats */}
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Today</Text>
         <View style={styles.statsRow}>
@@ -312,6 +318,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 32,
+  },
+  welcomeContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  welcomeLabel: {
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  welcomeName: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 18,
