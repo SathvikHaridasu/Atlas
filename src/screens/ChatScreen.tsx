@@ -20,6 +20,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
+import { uploadImageToStorage } from '../../lib/storageService';
+import { getGroupImageUrl } from '../../lib/storageService';
 
 interface Message {
   id: string;
@@ -83,7 +85,16 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
   ]);
   const [inputText, setInputText] = useState('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [groupImageUrl, setGroupImageUrl] = useState<string | null>(null);
   const messagesListRef = useRef<FlatList>(null);
+
+  // Load group image if sessionId is available
+  React.useEffect(() => {
+    if (sessionId) {
+      getGroupImageUrl(sessionId).then(setGroupImageUrl);
+    }
+  }, [sessionId]);
 
   const handlePickImageFromLibrary = async () => {
     try {
@@ -173,45 +184,82 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
     setSelectedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const hasText = inputText.trim().length > 0;
     const hasImages = selectedImages.length > 0;
 
-    if (hasText || hasImages) {
-      // If multiple images, send each as a separate message
-      if (hasImages && selectedImages.length > 1) {
-        selectedImages.forEach((imageUri, index) => {
+    if (!hasText && !hasImages) return;
+    if (!user) return;
+
+    // If sessionId exists, upload to Supabase and use sendMessage
+    if (sessionId) {
+      setUploadingImage(true);
+      try {
+        if (hasImages) {
+          for (const imageUri of selectedImages) {
+            try {
+              const imageUrl = await uploadImageToStorage(imageUri, 'chat-images', sessionId);
+              const textToSend = selectedImages.indexOf(imageUri) === 0 && hasText ? inputText.trim() : null;
+              
+              // Import sendMessage from sessionService
+              const { sendMessage } = await import('../../lib/sessionService');
+              await sendMessage(sessionId, user.id, textToSend, imageUrl);
+            } catch (error: any) {
+              console.error('Error uploading image:', error);
+              Alert.alert('Error', `Failed to upload image: ${error.message}`);
+              return;
+            }
+          }
+        } else {
+          const { sendMessage } = await import('../../lib/sessionService');
+          await sendMessage(sessionId, user.id, inputText.trim(), null);
+        }
+
+        setInputText('');
+        setSelectedImages([]);
+        setTimeout(() => {
+          messagesListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } catch (error: any) {
+        Alert.alert('Error', error.message);
+      } finally {
+        setUploadingImage(false);
+      }
+    } else {
+      // Fallback for non-session chats (mock behavior)
+      if (hasText || hasImages) {
+        if (hasImages && selectedImages.length > 1) {
+          selectedImages.forEach((imageUri, index) => {
+            const newMessage: Message = {
+              id: `${Date.now()}-${index}`,
+              text: index === 0 && hasText ? inputText.trim() : '',
+              sender: 'You',
+              senderId: user?.id || 'me',
+              timestamp: new Date(),
+              isMine: true,
+              imageUrl: imageUri,
+            };
+            setMessages((prev) => [...prev, newMessage]);
+          });
+        } else {
           const newMessage: Message = {
-            id: `${Date.now()}-${index}`,
-            text: index === 0 && hasText ? inputText.trim() : '',
+            id: Date.now().toString(),
+            text: inputText.trim(),
             sender: 'You',
             senderId: user?.id || 'me',
             timestamp: new Date(),
             isMine: true,
-            imageUrl: imageUri,
+            imageUrl: selectedImages[0] || undefined,
           };
           setMessages((prev) => [...prev, newMessage]);
-        });
-      } else {
-        // Single message with text and/or image
-        const newMessage: Message = {
-          id: Date.now().toString(),
-          text: inputText.trim(),
-          sender: 'You',
-          senderId: user?.id || 'me',
-          timestamp: new Date(),
-          isMine: true,
-          imageUrl: selectedImages[0] || undefined,
-        };
-        setMessages((prev) => [...prev, newMessage]);
-      }
+        }
 
-      setInputText('');
-      setSelectedImages([]);
-      // Scroll to bottom after sending message
-      setTimeout(() => {
-        messagesListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+        setInputText('');
+        setSelectedImages([]);
+        setTimeout(() => {
+          messagesListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
     }
   };
 
@@ -287,8 +335,21 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
                   <View style={[styles.avatarSmall, styles.avatar3]} />
                 </View>
                 <View style={styles.headerText}>
-                  <Text style={[styles.groupName, { color: theme.text }]}>Neighbourhood Runners</Text>
-                  <Text style={[styles.memberCount, { color: theme.mutedText }]}>12 members online</Text>
+                  {groupImageUrl ? (
+                    <Image source={{ uri: groupImageUrl }} style={styles.groupAvatarSmall} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.groupAvatarPlaceholder, { backgroundColor: theme.accent }]}>
+                      <Text style={styles.groupAvatarInitial}>
+                        {sessionName ? sessionName.charAt(0).toUpperCase() : 'G'}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.headerTextContent}>
+                    <Text style={[styles.groupName, { color: theme.text }]}>
+                      {sessionName || 'Neighbourhood Runners'}
+                    </Text>
+                    <Text style={[styles.memberCount, { color: theme.mutedText }]}>12 members online</Text>
+                  </View>
                 </View>
               </View>
               <View style={styles.headerRight}>
@@ -385,13 +446,19 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
                 ]}
                 onPress={handleSend}
                 activeOpacity={0.8}
-                disabled={!inputText.trim() && selectedImages.length === 0}
+                disabled={
+                  (!inputText.trim() && selectedImages.length === 0) || uploadingImage
+                }
               >
-                <Ionicons
-                  name="send"
-                  size={20}
-                  color={inputText.trim() || selectedImages.length > 0 ? '#000' : theme.mutedText}
-                />
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color="#000" />
+                ) : (
+                  <Ionicons
+                    name="send"
+                    size={20}
+                    color={inputText.trim() || selectedImages.length > 0 ? '#000' : theme.mutedText}
+                  />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -450,6 +517,32 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   headerText: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupAvatarSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  groupAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  groupAvatarInitial: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  headerTextContent: {
     flex: 1,
   },
   groupName: {

@@ -37,10 +37,12 @@ export interface Message {
   id: string;
   session_id: string;
   user_id: string;
-  content: string;
+  content: string | null;
+  image_url: string | null;
   created_at: string;
   profiles?: {
     username: string;
+    avatar_url?: string | null;
   };
 }
 
@@ -361,7 +363,12 @@ export async function endOfWeekProcessing(sessionId: string) {
   }
 }
 
-export async function sendMessage(sessionId: string, userId: string, content: string) {
+export async function sendMessage(
+  sessionId: string,
+  userId: string,
+  content: string | null = null,
+  imageUrl: string | null = null
+) {
   // Ensure user is a member
   const { data: member } = await supabase
     .from("session_members")
@@ -380,12 +387,18 @@ export async function sendMessage(sessionId: string, userId: string, content: st
       });
   }
 
+  // Validate that at least content or imageUrl is provided
+  if (!content && !imageUrl) {
+    throw new Error("Message must have either content or image_url");
+  }
+
   const { error } = await supabase
     .from("messages")
     .insert({
       session_id: sessionId,
       user_id: userId,
-      content,
+      content: content || null,
+      image_url: imageUrl || null,
     });
 
   if (error) {
@@ -400,7 +413,8 @@ export async function getMessages(sessionId: string): Promise<Message[]> {
     .select(`
       *,
       profiles (
-        username
+        username,
+        avatar_url
       )
     `)
     .eq("session_id", sessionId)
@@ -442,7 +456,8 @@ export function listenToMessages(sessionId: string, setMessages: (messages: Mess
           .select(`
             *,
             profiles (
-              username
+              username,
+              avatar_url
             )
           `)
           .eq("id", payload.new.id)
