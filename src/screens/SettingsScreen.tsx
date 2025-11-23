@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabaseClient";
+import HeaderHomeButton from "../components/HeaderHomeButton";
 
 import type { SettingsStackParamList } from "../navigation/SettingsNavigator";
 
@@ -153,6 +154,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      {/* Home Button */}
+      <View style={styles.homeButtonContainer}>
+        <HeaderHomeButton />
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
@@ -394,6 +400,13 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  homeButtonContainer: {
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   scrollView: {
     flex: 1,

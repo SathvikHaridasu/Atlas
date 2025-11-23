@@ -1,5 +1,6 @@
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import * as Location from 'expo-location';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -8,13 +9,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRunStats } from '../contexts/RunStatsContext';
 import { useAppTheme } from '../contexts/ThemeContext';
+import type { RootTabParamList } from '../navigation/RootNavigator';
 import { SAMPLE_ZONES } from '../lib/sampleZones';
+
+type HomeScreenNavigationProp = BottomTabNavigationProp<RootTabParamList, 'Home'>;
 
 export default function HomeScreen() {
   const { user, profile, loading } = useAuth();
   const { points, totalDistanceMeters, elapsedSeconds } = useRunStats();
   const { theme } = useAppTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
+
+  const handleOpenDrawer = () => {
+    navigation.dispatch(DrawerActions.openDrawer());
+  };
 
   const [miniRegion, setMiniRegion] = useState<Region | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -48,7 +56,7 @@ export default function HomeScreen() {
   };
 
   const handleGoToChat = () => {
-    navigation.navigate('Chat' as never);
+    navigation.navigate('Chats');
   };
 
   const handleOpenCamera = () => {
@@ -100,6 +108,9 @@ export default function HomeScreen() {
       {/* Top row */}
       <View style={styles.topRow}>
         <View style={styles.logoRow}>
+          <TouchableOpacity onPress={handleOpenDrawer} activeOpacity={0.7} style={styles.menuButton}>
+            <Ionicons name="menu" size={24} color={theme.text} />
+          </TouchableOpacity>
           <Ionicons name="footsteps" size={26} color={theme.accent} />
           <Text style={[styles.appTitle, { color: theme.text }]}>Atlas Run</Text>
         </View>
@@ -117,7 +128,7 @@ export default function HomeScreen() {
             onPress={handleViewChallenges}
             activeOpacity={0.7}
           >
-            <MaterialIcons name="emoji-events" size={24} color={theme.accent} />
+            <MaterialIcons name="terrain" size={24} color={theme.accent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -228,7 +239,7 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <View style={[styles.actionIcon, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <MaterialIcons name="emoji-events" size={24} color={theme.accent} />
+              <MaterialIcons name="terrain" size={24} color={theme.accent} />
             </View>
             <Text style={[styles.actionLabel, { color: theme.mutedText }]}>Challenges</Text>
           </TouchableOpacity>
@@ -240,7 +251,7 @@ export default function HomeScreen() {
             <View style={[styles.actionIcon, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <Ionicons name="chatbubbles-outline" size={24} color={theme.accent} />
             </View>
-            <Text style={[styles.actionLabel, { color: theme.mutedText }]}>Group Chat</Text>
+            <Text style={[styles.actionLabel, { color: theme.mutedText }]}>Group Chats</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -270,6 +281,10 @@ const styles = StyleSheet.create({
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  menuButton: {
+    marginRight: 12,
+    padding: 4,
   },
   appTitle: {
     fontSize: 20,

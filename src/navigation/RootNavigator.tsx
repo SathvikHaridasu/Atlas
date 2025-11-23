@@ -1,10 +1,11 @@
 // Run these in your terminal (from the project root):
 // expo install @react-navigation/native
 // expo install react-native-screens react-native-safe-area-context
-// npm install @react-navigation/native-stack @react-navigation/bottom-tabs
+// npm install @react-navigation/native-stack @react-navigation/bottom-tabs @react-navigation/drawer
 
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createDrawerNavigator } from '@react-navigation/drawer';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
@@ -14,15 +15,19 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 
 import LeaderboardScreen from '../../app/leaderboard/LeaderboardScreen';
+import SideDrawerContent from '../components/SideDrawerContent';
 import CameraScreen from '../screens/CameraScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import ChatScreen from '../screens/ChatScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
 import DareFeedScreen from '../screens/DareFeedScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+import FavoritesScreen from '../screens/FavoritesScreen';
 import FeedScreen from '../screens/FeedScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import RunScreen from '../screens/RunScreen';
 import SessionLeaderboardScreen from '../screens/SessionLeaderboardScreen';
 import SessionLobbyScreen from '../screens/SessionLobbyScreen';
@@ -45,10 +50,19 @@ export type RootTabParamList = {
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator();
+const Drawer = createDrawerNavigator();
+
+// Define the type for drawer navigation parameters
+export type DrawerParamList = {
+  MainTabs: undefined;
+  Settings: undefined;
+  Profile: undefined;
+  Favorites: undefined;
+};
 
 // Define the type for root stack navigation parameters
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainDrawer: undefined;
   Camera: { sessionId?: string }; // sessionId is optional since camera can be used from other places too
   CreateSession: undefined;
   JoinSession: undefined;
@@ -65,6 +79,19 @@ export type RootStackParamList = {
   MasterMap: undefined;
   Chat: undefined;
   Leaderboard: undefined;
+  Settings: undefined;
+  Profile: undefined;
+  EditProfileScreen: undefined;
+  Favorites: undefined;
+};
+
+// Theme colors for drawer
+const drawerDarkTheme = {
+  background: '#050608',
+};
+
+const drawerLightTheme = {
+  background: '#FFFFFF',
 };
 
 // Main tabs navigator (shown when user is logged in)
@@ -131,6 +158,72 @@ function MainTabs() {
   );
 }
 
+// Drawer navigator that wraps MainTabs and includes Settings, Profile, Favorites
+function MainDrawer() {
+  const { isDark } = useAppTheme();
+  const theme = isDark ? drawerDarkTheme : drawerLightTheme;
+
+  return (
+    <Drawer.Navigator
+      drawerContent={(props) => <SideDrawerContent {...props} />}
+      screenOptions={{
+        headerShown: false,
+        drawerType: 'front',
+        drawerStyle: {
+          width: '75%',
+          backgroundColor: theme.background,
+        },
+        drawerActiveTintColor: '#03CA59',
+        drawerInactiveTintColor: '#9CA3AF',
+        overlayColor: 'rgba(0, 0, 0, 0.5)',
+        swipeEnabled: true,
+        swipeEdgeWidth: 50,
+      }}
+    >
+      <Drawer.Screen
+        name="MainTabs"
+        component={MainTabs}
+        options={{
+          drawerLabel: 'Home',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="Settings"
+        component={SettingsNavigator}
+        options={{
+          drawerLabel: 'Settings',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          drawerLabel: 'Profile',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="Favorites"
+        component={FavoritesScreen}
+        options={{
+          drawerLabel: 'Favorites',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="heart-outline" size={size} color={color} />
+          ),
+        }}
+      />
+    </Drawer.Navigator>
+  );
+}
+
 // Auth stack navigator (shown when user is not logged in)
 function AuthStack() {
   return (
@@ -173,7 +266,7 @@ export default function RootNavigator() {
     <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
       {user ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="MainDrawer" component={MainDrawer} />
           <Stack.Screen
             name="Camera"
             component={CameraScreen}
@@ -231,6 +324,11 @@ export default function RootNavigator() {
           <Stack.Screen
             name="Leaderboard"
             component={LeaderboardScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="EditProfileScreen"
+            component={EditProfileScreen}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>
