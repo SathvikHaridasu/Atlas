@@ -34,7 +34,7 @@ enableScreens(true);
 export type RootTabParamList = {
   Home: undefined;
   Run: undefined;
-  Sessions: undefined;
+  Chats: undefined;
   Settings: undefined;
 };
 
@@ -53,8 +53,8 @@ function MainTabs() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Run') {
             iconName = focused ? 'walk' : 'walk-outline';
-          } else if (route.name === 'Sessions') {
-            iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Chats') {
+            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           } else {
@@ -87,10 +87,10 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Sessions"
+        name="Chats"
         component={SessionsHomeScreen}
         options={{
-          title: 'Sessions',
+          title: 'Chats',
         }}
       />
       <Tab.Screen
