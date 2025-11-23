@@ -4,18 +4,41 @@
 // npm install @react-navigation/native-stack @react-navigation/bottom-tabs
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+
 import { NavigationContainer } from '@react-navigation/native';
+// =======
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+// >>>>>>> main
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { enableScreens } from 'react-native-screens';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../contexts/ThemeContext';
+
 
 import ChatScreen from '../screens/ChatScreen';
+// =======
+import ChallengesScreen from '../screens/ChallengesScreen';
+import CreateSessionScreen from '../screens/CreateSessionScreen';
+// >>>>>>> main
 import HomeScreen from '../screens/HomeScreen';
+
+import MasterMapScreen from '../screens/MasterMapScreen';
+
+import JoinSessionScreen from '../screens/JoinSessionScreen';
+// >>>>>>> main
 import RunScreen from '../screens/RunScreen';
+
 import SignInScreen from '../screens/SignInScreen';
 import SettingsNavigator from './SettingsNavigator';
+// =======
+import SessionLobbyScreen from '../screens/SessionLobbyScreen';
+import SessionsHomeScreen from '../screens/SessionsHomeScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import SignInScreen from '../screens/SignInScreen';
+import SignUpScreen from '../screens/SignUpScreen';
+// >>>>>>> main
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -24,7 +47,7 @@ enableScreens(true);
 export type RootTabParamList = {
   Home: undefined;
   Run: undefined;
-  Chat: undefined;
+  Sessions: undefined;
   Settings: undefined;
 };
 
@@ -40,6 +63,7 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           title: 'Home',
+          headerShown: false,
           // TODO: Add icon using @expo/vector-icons/Ionicons
           // tabBarIcon: ({ color, size }) => (
           //   <Ionicons name="home" size={size} color={color} />
@@ -58,13 +82,13 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Chat"
-        component={ChatScreen}
+        name="Sessions"
+        component={SessionsHomeScreen}
         options={{
-          title: 'Group Chat',
+          title: 'Sessions',
           // TODO: Add icon using @expo/vector-icons/Ionicons
           // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="chatbubbles" size={size} color={color} />
+          //   <Ionicons name="people" size={size} color={color} />
           // ),
         }}
       />
@@ -93,6 +117,11 @@ function AuthStack() {
         component={SignInScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="SignUp"
+        component={SignUpScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
@@ -100,18 +129,43 @@ function AuthStack() {
 // Root navigator that gates based on auth state
 export default function RootNavigator() {
   const { user, loading } = useAuth();
+  const { isDark } = useAppTheme();
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-        <ActivityIndicator size="large" color="#2563EB" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#020202' : '#FFFFFF' }}>
+        <ActivityIndicator size="large" color="#03CA59" />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
-      {user ? <MainTabs /> : <AuthStack />}
+    <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
+      {user ? (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
+          <Stack.Screen name="JoinSession" component={JoinSessionScreen} />
+          <Stack.Screen name="SessionLobby" component={SessionLobbyScreen} />
+          <Stack.Screen
+            name="Challenges"
+            component={ChallengesScreen}
+            options={{
+              headerShown: true,
+              title: 'Challenges',
+              headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
+              headerTintColor: isDark ? '#F9FAFB' : '#111111',
+            }}
+          />
+          <Stack.Screen
+            name="MasterMap"
+            component={MasterMapScreen}
+            options={{ headerShown: false }}
+          />
+        </Stack.Navigator>
+      ) : (
+        <AuthStack />
+      )}
     </NavigationContainer>
   );
 }

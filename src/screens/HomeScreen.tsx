@@ -1,35 +1,46 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Location from 'expo-location';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import MapView, { Polygon, Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRunStats } from '../contexts/RunStatsContext';
+import { useAppTheme } from '../contexts/ThemeContext';
+import { SAMPLE_ZONES } from '../lib/sampleZones';
 
 export default function HomeScreen() {
   const { user, profile, loading } = useAuth();
+  const { points, totalDistanceMeters, elapsedSeconds } = useRunStats();
+  const { theme } = useAppTheme();
   const navigation = useNavigation();
 
+  const [miniRegion, setMiniRegion] = useState<Region | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const myZones = SAMPLE_ZONES.filter((z) => z.group === "ME");
+
   const displayName =
-    profile?.username ||
     profile?.full_name ||
+    profile?.username ||
     user?.user_metadata?.full_name ||
     (user?.email ? user.email.split('@')[0] : 'Runner');
 
-  // Placeholder stats (will be wired to real data later)
-  const todayStats = {
-    distance: '0.0',
-    time: '0:00',
-    points: '0',
-  };
+  const distanceKm = (totalDistanceMeters / 1000).toFixed(2);
 
-  const weekProgress = 0.4; // 40% progress
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   const handleStartRun = () => {
     navigation.navigate('Run' as never);
   };
 
   const handleViewChallenges = () => {
-    // TODO: Navigate to challenges screen
+    navigation.navigate('Challenges' as never);
   };
 
   const handleGoToSettings = () => {
@@ -40,107 +51,183 @@ export default function HomeScreen() {
     navigation.navigate('Chat' as never);
   };
 
+  const weeklyGoalKm = 10;
+  const weekProgress = Math.min(parseFloat(distanceKm) / weeklyGoalKm, 1);
+
+  useEffect(() => {
+    const loadLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setLocationError("Location permission denied");
+          return;
+        }
+
+        const loc = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = loc.coords;
+
+        setMiniRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.03,
+          longitudeDelta: 0.03,
+        });
+      } catch (err) {
+        console.warn("Error getting home location", err);
+        setLocationError("Error getting location");
+      }
+    };
+
+    loadLocation();
+  }, []);
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
         <View style={styles.center}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: theme.mutedText }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      {/* Top row */}
+      <View style={styles.topRow}>
+        <View style={styles.logoRow}>
+          <Ionicons name="footsteps" size={26} color={theme.accent} />
+          <Text style={[styles.appTitle, { color: theme.text }]}>Atlas Run</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={handleViewChallenges}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="emoji-events" size={24} color={theme.accent} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Welcome Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleGoToSettings} activeOpacity={0.7}>
-            <View style={styles.avatar}>
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
-              ) : (
-                <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
-              )}
-            </View>
-          </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.nameText}>{displayName}</Text>
-          </View>
-        </View>
-
-        {/* Today Stats Row */}
+        {/* Today stats */}
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Today</Text>
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Ionicons name="walk-outline" size={24} color="#03CA59" />
-            <Text style={styles.statValue}>{todayStats.distance}</Text>
-            <Text style={styles.statLabel}>km</Text>
+          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="walk-outline" size={24} color={theme.accent} />
+            <Text style={[styles.statValue, { color: theme.text }]}>{distanceKm}</Text>
+            <Text style={[styles.statLabel, { color: theme.mutedText }]}>km</Text>
           </View>
-          <View style={styles.statCard}>
-            <Ionicons name="time-outline" size={24} color="#03CA59" />
-            <Text style={styles.statValue}>{todayStats.time}</Text>
-            <Text style={styles.statLabel}>time</Text>
+          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="time-outline" size={24} color={theme.accent} />
+            <Text style={[styles.statValue, { color: theme.text }]}>{formatTime(elapsedSeconds)}</Text>
+            <Text style={[styles.statLabel, { color: theme.mutedText }]}>time</Text>
           </View>
-          <View style={styles.statCard}>
-            <Ionicons name="trophy-outline" size={24} color="#03CA59" />
-            <Text style={styles.statValue}>{todayStats.points}</Text>
-            <Text style={styles.statLabel}>points</Text>
+          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="trophy-outline" size={24} color={theme.accent} />
+            <Text style={[styles.statValue, { color: theme.text }]}>{points.toLocaleString()}</Text>
+            <Text style={[styles.statLabel, { color: theme.mutedText }]}>points</Text>
           </View>
         </View>
 
-        {/* This Week Progress Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>This Week</Text>
-            <Text style={styles.cardSubtitle}>4.2 / 10 km</Text>
-          </View>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${weekProgress * 100}%` }]} />
-          </View>
-          <Text style={styles.progressText}>{Math.round(weekProgress * 100)}% complete</Text>
-        </View>
-
-        {/* Challenges Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <MaterialIcons name="emoji-events" size={24} color="#03CA59" />
-            <View style={styles.cardHeaderText}>
-              <Text style={styles.cardTitle}>UN Goal #11</Text>
-              <Text style={styles.cardSubtitle}>Sustainable Cities</Text>
-            </View>
-          </View>
-          <Text style={styles.challengeText}>
-            Run 5km this week to contribute to sustainable urban mobility
+        {/* Personal goals */}
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Personal goals</Text>
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.goalTitle, { color: theme.text }]}>Run {weeklyGoalKm} km this week</Text>
+          <Text style={[styles.goalSubtitle, { color: theme.mutedText }]}>
+            You've run {distanceKm} km so far.
           </Text>
-          <TouchableOpacity style={styles.challengeButton} onPress={handleViewChallenges} activeOpacity={0.8}>
-            <Text style={styles.challengeButtonText}>View Challenges</Text>
-          </TouchableOpacity>
+          <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${weekProgress * 100}%`, backgroundColor: theme.accent },
+              ]}
+            />
+          </View>
+          <Text style={[styles.progressText, { color: theme.mutedText }]}>
+            {Math.round(weekProgress * 100)}% complete
+          </Text>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.actionButton} onPress={handleStartRun} activeOpacity={0.8}>
-            <View style={[styles.actionIcon, { backgroundColor: '#03CA59' }]}>
+        {/* Mini Map card */}
+        <View style={[styles.miniMapCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.miniMapHeader}>
+            <Text style={[styles.masterMapTitle, { color: theme.text }]}>Your territory</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("MasterMap" as never)}>
+              <Text style={styles.miniMapLink}>Open map</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.miniMapContainer}>
+            {miniRegion ? (
+              <MapView
+                style={StyleSheet.absoluteFill}
+                provider="google"
+                initialRegion={miniRegion}
+                showsUserLocation
+                scrollEnabled={false}
+                zoomEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+                pointerEvents="none"
+              >
+                {myZones.map((zone) => (
+                  <Polygon
+                    key={zone.id}
+                    coordinates={zone.coordinates}
+                    strokeWidth={2}
+                    strokeColor="rgba(3,202,89,1)"
+                    fillColor="rgba(3,202,89,0.3)"
+                  />
+                ))}
+              </MapView>
+            ) : (
+              <View style={styles.miniMapPlaceholder}>
+                <Text style={[styles.miniMapPlaceholderText, { color: theme.mutedText }]}>
+                  {locationError ?? "Loading your area..."}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Quick actions */}
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Quick actions</Text>
+        <View style={styles.quickRow}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleStartRun}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: theme.accent }]}>
               <Ionicons name="play" size={24} color="#000" />
             </View>
-            <Text style={styles.actionLabel}>Start Run</Text>
+            <Text style={[styles.actionLabel, { color: theme.mutedText }]}>Start Run</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={handleGoToChat} activeOpacity={0.8}>
-            <View style={styles.actionIcon}>
-              <Ionicons name="chatbubbles-outline" size={24} color="#03CA59" />
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleViewChallenges}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <MaterialIcons name="emoji-events" size={24} color={theme.accent} />
             </View>
-            <Text style={styles.actionLabel}>Group Chat</Text>
+            <Text style={[styles.actionLabel, { color: theme.mutedText }]}>Challenges</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={handleStartRun} activeOpacity={0.8}>
-            <View style={styles.actionIcon}>
-              <MaterialIcons name="alt-route" size={24} color="#03CA59" />
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleGoToChat}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Ionicons name="chatbubbles-outline" size={24} color={theme.accent} />
             </View>
-            <Text style={styles.actionLabel}>Add Route</Text>
+            <Text style={[styles.actionLabel, { color: theme.mutedText }]}>Group Chat</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -151,7 +238,33 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020202',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  appTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  iconButton: {
+    padding: 8,
   },
   scrollView: {
     flex: 1,
@@ -160,51 +273,11 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#9CA3AF',
-    fontSize: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#03CA59',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  avatarText: {
-    fontSize: 24,
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    color: '#000',
-  },
-  headerText: {
-    flex: 1,
-  },
-  welcomeText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginBottom: 2,
-  },
-  nameText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    marginBottom: 12,
+    marginTop: 8,
   },
   statsRow: {
     flexDirection: 'row',
@@ -213,84 +286,50 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#101010',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     marginHorizontal: 4,
+    borderWidth: 1,
   },
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#F9FAFB',
     marginTop: 8,
   },
   statLabel: {
     fontSize: 12,
-    color: '#9CA3AF',
     marginTop: 4,
   },
   card: {
-    backgroundColor: '#101010',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  cardHeaderText: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  cardTitle: {
+  goalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#F9FAFB',
+    marginBottom: 8,
   },
-  cardSubtitle: {
+  goalSubtitle: {
     fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 2,
+    marginBottom: 12,
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#181818',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 8,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#03CA59',
     borderRadius: 4,
   },
   progressText: {
     fontSize: 12,
-    color: '#9CA3AF',
   },
-  challengeText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  challengeButton: {
-    backgroundColor: 'rgba(3, 202, 89, 0.1)',
-    borderWidth: 1,
-    borderColor: '#03CA59',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  challengeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#03CA59',
-  },
-  quickActions: {
+  quickRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 8,
@@ -304,14 +343,48 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#181818',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    borderWidth: 1,
   },
   actionLabel: {
     fontSize: 12,
-    color: '#9CA3AF',
     textAlign: 'center',
+  },
+  miniMapCard: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  miniMapHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  masterMapTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  miniMapContainer: {
+    height: 140,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#050505',
+  },
+  miniMapLink: {
+    fontSize: 12,
+    color: '#03CA59',
+    fontWeight: '500',
+  },
+  miniMapPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniMapPlaceholderText: {
+    fontSize: 12,
   },
 });
