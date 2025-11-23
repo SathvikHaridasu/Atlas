@@ -645,3 +645,27 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 
   return data || [];
 }
+
+/**
+ * Leave a session by removing the user from session_members
+ * @param sessionId - The session ID to leave
+ * @param userId - The authenticated user's ID
+ */
+export async function leaveSession(sessionId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("session_members")
+    .delete()
+    .eq("session_id", sessionId)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error('[LEAVE SESSION] error', error);
+    // Handle specific RLS errors
+    if (error.code === '42501') {
+      throw new Error(
+        "Unable to leave session. Please ensure you're authenticated and have permission to leave."
+      );
+    }
+    throw new Error(`Failed to leave session: ${error.message}`);
+  }
+}
