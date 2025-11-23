@@ -1,13 +1,18 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useRunStats } from '../contexts/RunStatsContext';
 import { useAppTheme } from '../contexts/ThemeContext';
+import { useGoals } from '../contexts/GoalsContext';
+import GoalCard from '../components/goals/GoalCard';
 
 export default function ChallengesScreen() {
   const { points, totalDistanceMeters, elapsedSeconds } = useRunStats();
   const { theme } = useAppTheme();
+  const { goals } = useGoals();
+  const navigation = useNavigation();
 
   const formatTime = (seconds: number): string => {
     const h = Math.floor(seconds / 3600);
@@ -40,6 +45,38 @@ export default function ChallengesScreen() {
         <Text style={[styles.title, { color: theme.text }]}>Personal Goals</Text>
         <Text style={[styles.subtitle, { color: theme.mutedText }]}>
           Track your progress and unlock achievements
+        </Text>
+
+        {/* Create Goal Button */}
+        <TouchableOpacity
+          style={[styles.createGoalCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => navigation.navigate('CreateGoal' as never)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.createGoalIcon, { backgroundColor: 'rgba(3,202,89,0.15)' }]}>
+            <MaterialIcons name="add" size={24} color={theme.accent} />
+          </View>
+          <View style={styles.createGoalTextContainer}>
+            <Text style={[styles.createGoalTitle, { color: theme.text }]}>Create a new goal</Text>
+            <Text style={[styles.createGoalSubtitle, { color: theme.mutedText }]}>
+              Set your own distance, time, or session target.
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Your Goals Section */}
+        {goals.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Goals</Text>
+            {goals.map((goal) => (
+              <GoalCard key={goal.id} goal={goal} />
+            ))}
+          </>
+        )}
+
+        {/* System Goals Section */}
+        <Text style={[styles.sectionTitle, { color: theme.text, marginTop: goals.length > 0 ? 8 : 0 }]}>
+          Weekly Goals
         </Text>
 
         {/* Weekly Distance Goal */}
@@ -205,6 +242,40 @@ const styles = StyleSheet.create({
   challengeText: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  createGoalCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  createGoalIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  createGoalTextContainer: {
+    flex: 1,
+  },
+  createGoalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  createGoalSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+    marginTop: 8,
   },
 });
 
