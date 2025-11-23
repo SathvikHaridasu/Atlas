@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -44,6 +45,7 @@ function RootLayoutNav() {
       <Stack.Screen name="auth" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      <Stack.Screen name="leaderboard/LeaderboardScreen" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -52,13 +54,15 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <AuthProvider>
-      <ScanProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <RootLayoutNav />
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </ScanProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <ScanProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <RootLayoutNav />
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </ScanProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

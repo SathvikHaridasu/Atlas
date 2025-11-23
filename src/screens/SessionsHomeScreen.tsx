@@ -1,38 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Modal,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useAuth } from '../../contexts/AuthContext';
-import { createSession, joinSession } from '../../lib/sessionService';
-import { supabase } from '../../lib/supabaseClient';
+import {
+  createSession,
+  getUserSessions,
+  joinSessionWithCode,
+  leaveSession,
+} from '../../lib/sessionService';
+import { getGroupImageUrl } from '../../lib/storageService';
 
 interface Session {
   id: string;
   name: string;
-  code: string;
-  week_start: string;
-  week_end: string;
+  status: string;
+  created_by: string;
+  code: string; // Database column is 'code'
+  join_code?: string; // Alias for compatibility
+  week_start?: string;
+  week_end?: string;
 }
+
+interface SessionWithAvatar extends Session {
+  groupImageUrl?: string | null;
+}
+
+// Alias to keep existing SessionWithProfile references working
+type SessionWithProfile = SessionWithAvatar;
 
 export default function SessionsHomeScreen({ navigation }: any) {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<SessionWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [joinModalVisible, setJoinModalVisible] = useState(false);
   const [sessionName, setSessionName] = useState('');
-  const [sessionPassword, setSessionPassword] = useState('');
   const [joinCode, setJoinCode] = useState('');
-  const [joinPassword, setJoinPassword] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
+  const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
 
   useEffect(() => {
     if (user) {
@@ -44,31 +64,17 @@ export default function SessionsHomeScreen({ navigation }: any) {
     if (!user) return;
 
     try {
-      // First get session IDs user is member of
-      const { data: memberData, error: memberError } = await supabase
-        .from('session_members')
-        .select('session_id')
-        .eq('user_id', user.id);
+      const userSessions = await getUserSessions(user.id);
 
-      if (memberError) throw memberError;
+      // Load group images for each session
+      const sessionsWithAvatars: SessionWithAvatar[] = await Promise.all(
+        userSessions.map(async (session: Session) => {
+          const groupImageUrl = await getGroupImageUrl(session.id);
+          return { ...session, groupImageUrl };
+        })
+      );
 
-      if (!memberData || memberData.length === 0) {
-        setSessions([]);
-        return;
-      }
-
-      const sessionIds = memberData.map(m => m.session_id);
-
-      // Then get sessions
-      const { data, error } = await supabase
-        .from('sessions')
-        .select('*')
-        .in('id', sessionIds);
-
-      if (error) throw error;
-
-      const sessionData = data as Session[];
-      setSessions(sessionData || []);
+      setSessions(sessionsWithAvatars);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -85,8 +91,8 @@ export default function SessionsHomeScreen({ navigation }: any) {
   };
 
   const handleCreateSubmit = async () => {
-    if (!sessionName.trim() || !sessionPassword.trim()) {
-      Alert.alert('Error', 'Please enter session name and password');
+    if (!sessionName.trim()) {
+      Alert.alert('Error', 'Please enter chat name');
       return;
     }
 
@@ -97,22 +103,25 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
     setModalLoading(true);
     try {
-      const session = await createSession(user.id, sessionName.trim(), sessionPassword.trim());
+      const session = await createSession(sessionName.trim());
       setCreateModalVisible(false);
       setSessionName('');
-      setSessionPassword('');
       navigation.navigate('SessionLobby', { sessionId: session.id });
       loadSessions(); // Refresh list
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to create chat');
     } finally {
       setModalLoading(false);
     }
   };
 
   const handleJoinSubmit = async () => {
-    if (joinCode.length !== 6 || !joinPassword.trim()) {
-      Alert.alert('Error', 'Please enter a valid 6-character code and password');
+    // Normalize the code: trim whitespace, convert to uppercase
+    const normalizedCode = joinCode.trim().toUpperCase();
+
+    // Validate exactly 6 characters
+    if (normalizedCode.length !== 6) {
+      Alert.alert('Error', 'Join code must be exactly 6 characters');
       return;
     }
 
@@ -123,89 +132,204 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
     setModalLoading(true);
     try {
-      const session = await joinSession(user.id, joinCode.toUpperCase(), joinPassword.trim());
+      const session = await joinSessionWithCode(user.id, normalizedCode);
       setJoinModalVisible(false);
       setJoinCode('');
-      setJoinPassword('');
       navigation.navigate('SessionLobby', { sessionId: session.id });
       loadSessions(); // Refresh list
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to join chat. Please check the code and try again.'
+      );
     } finally {
       setModalLoading(false);
     }
   };
 
-  const handleSessionPress = (session: Session) => {
+  const handleSessionPress = (session: SessionWithProfile) => {
     navigation.navigate('SessionLobby', { sessionId: session.id });
+  };
+
+  const handleLeaveChat = async (chat: SessionWithProfile) => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in');
+      return;
+    }
+
+    // Close swipeable if open
+    swipeableRefs.current[chat.id]?.close();
+
+    Alert.alert('Leave Chat', `Are you sure you want to leave "${chat.name}"?`, [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Leave',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await leaveSession(chat.id, user.id);
+            // Remove from local list
+            setSessions((prev) => prev.filter((s) => s.id !== chat.id));
+          } catch (error: any) {
+            console.error('Failed to leave chat', error);
+            Alert.alert('Error', error.message || 'Could not leave chat.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const getSessionInitial = (name: string): string => {
+    return name.charAt(0).toUpperCase() || 'C';
+  };
+
+  const formatDateRange = (start?: string, end?: string): string => {
+    if (!start || !end) return '';
+    try {
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      const startFormatted = startDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      const endFormatted = endDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      return `${startFormatted} - ${endFormatted}`;
+    } catch {
+      return `${start} - ${end}`;
+    }
+  };
+
+  const renderRightActions = (session: SessionWithProfile) => (
+    <TouchableOpacity style={styles.swipeDelete} onPress={() => handleLeaveChat(session)}>
+      <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+      <Text style={styles.swipeDeleteText}>Leave</Text>
+    </TouchableOpacity>
+  );
+
+  const renderChatItem = ({ item }: { item: SessionWithProfile }) => {
+    const avatarUrl = item.groupImageUrl || null;
+    const initial = getSessionInitial(item.name);
+    const dateRange = formatDateRange(item.week_start, item.week_end);
+
+    return (
+      <Swipeable
+        ref={(ref) => {
+          if (ref) {
+            swipeableRefs.current[item.id] = ref;
+          }
+        }}
+        renderRightActions={() => renderRightActions(item)}
+        rightThreshold={40}
+      >
+        <TouchableOpacity
+          style={styles.chatRow}
+          onPress={() => handleSessionPress(item)}
+          activeOpacity={0.8}
+        >
+          {/* Left avatar */}
+          <View style={styles.avatarContainer}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} contentFit="cover" />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitial}>{initial}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Middle text */}
+          <View style={styles.chatTextContainer}>
+            <Text style={styles.chatName}>{item.name}</Text>
+            <Text style={styles.chatCode}>Join Code: {item.code || item.join_code}</Text>
+            {dateRange && <Text style={styles.chatDates}>{dateRange}</Text>}
+          </View>
+
+          {/* Right arrow */}
+          <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+        </TouchableOpacity>
+      </Swipeable>
+    );
   };
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <Text>Loading...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#03CA59" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Your Sessions</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" />
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.button} onPress={handleCreateSession}>
-          <Text style={styles.buttonText}>Create Session</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <Text style={styles.sectionTitle}>Your Chats</Text>
 
-        <TouchableOpacity style={[styles.button, styles.joinButton]} onPress={handleJoinSession}>
-          <Text style={styles.buttonText}>Join Session</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity onPress={handleCreateSession} style={styles.buttonWrapper}>
+            <LinearGradient
+              colors={['#03CA59', '#16DB7E']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.gradientButton}
+            >
+              <Text style={styles.gradientButtonText}>Create Chat</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleJoinSession} style={styles.buttonWrapper}>
+            <LinearGradient
+              colors={['#3B82F6', '#6366F1']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.gradientButton}
+            >
+              <Text style={styles.gradientButtonText}>Join Chat</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={sessions}
+          keyExtractor={(item) => item.id}
+          renderItem={renderChatItem}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No chats yet. Create or join one!</Text>
+            </View>
+          }
+        />
       </View>
 
-      <FlatList
-        data={sessions}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.sessionItem}
-            onPress={() => handleSessionPress(item)}
-          >
-            <Text style={styles.sessionName}>{item.name}</Text>
-            <Text style={styles.sessionCode}>Code: {item.code}</Text>
-            <Text style={styles.sessionDates}>
-              {item.week_start} - {item.week_end}
-            </Text>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No sessions yet. Create or join one!</Text>
-        }
-      />
-
-      {/* Create Session Modal */}
+      {/* Create Chat Modal */}
       <Modal
         visible={createModalVisible}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setCreateModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create Session</Text>
+            <Text style={styles.modalTitle}>Create Chat</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Session Name"
+              placeholder="Chat Name"
+              placeholderTextColor="#6B7280"
               value={sessionName}
               onChangeText={setSessionName}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={sessionPassword}
-              onChangeText={setSessionPassword}
-              secureTextEntry
             />
 
             <View style={styles.modalButtons}>
@@ -213,18 +337,22 @@ export default function SessionsHomeScreen({ navigation }: any) {
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setCreateModalVisible(false)}
               >
-                <Text style={styles.buttonText}>Cancel</Text>
+                <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, modalLoading && styles.buttonDisabled]}
+                style={[
+                  styles.modalButton,
+                  styles.modalPrimaryButton,
+                  modalLoading && styles.buttonDisabled,
+                ]}
                 onPress={handleCreateSubmit}
                 disabled={modalLoading}
               >
                 {modalLoading ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.buttonText}>Create</Text>
+                  <Text style={styles.modalButtonText}>Create</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -232,32 +360,25 @@ export default function SessionsHomeScreen({ navigation }: any) {
         </View>
       </Modal>
 
-      {/* Join Session Modal */}
+      {/* Join Chat Modal */}
       <Modal
         visible={joinModalVisible}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setJoinModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Join Session</Text>
+            <Text style={styles.modalTitle}>Join Chat</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="6-character code"
+              placeholder="6-character join code"
+              placeholderTextColor="#6B7280"
               value={joinCode}
               onChangeText={(text) => setJoinCode(text.toUpperCase().slice(0, 6))}
               maxLength={6}
               autoCapitalize="characters"
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={joinPassword}
-              onChangeText={setJoinPassword}
-              secureTextEntry
             />
 
             <View style={styles.modalButtons}>
@@ -265,118 +386,232 @@ export default function SessionsHomeScreen({ navigation }: any) {
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setJoinModalVisible(false)}
               >
-                <Text style={styles.buttonText}>Cancel</Text>
+                <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, modalLoading && styles.buttonDisabled]}
+                style={[
+                  styles.modalButton,
+                  styles.modalPrimaryButton,
+                  modalLoading && styles.buttonDisabled,
+                ]}
                 onPress={handleJoinSubmit}
-                disabled={modalLoading || joinCode.length !== 6}
+                disabled={modalLoading || joinCode.trim().length !== 6}
               >
                 {modalLoading ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.buttonText}>Join</Text>
+                  <Text style={styles.modalButtonText}>Join</Text>
                 )}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#020617',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 20,
+    backgroundColor: '#020617',
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
+  loadingText: {
+    color: '#F9FAFB',
+    marginTop: 12,
+    fontSize: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#F9FAFB',
+    textAlign: 'left',
+    marginHorizontal: 20,
+    marginTop: 16,
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginHorizontal: 20,
+    marginTop: 16,
   },
-  button: {
-    backgroundColor: '#10B981',
-    borderRadius: 8,
-    padding: 12,
+  buttonWrapper: {
     flex: 1,
-    marginHorizontal: 5,
+    marginHorizontal: 6,
+  },
+  gradientButton: {
+    paddingVertical: 14,
+    borderRadius: 20,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  joinButton: {
-    backgroundColor: '#2563EB',
-  },
-  buttonText: {
+  gradientButtonText: {
     color: '#FFFFFF',
+    fontWeight: '700',
     fontSize: 16,
-    fontWeight: '600',
   },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+  },
+  chatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0B1220',
+    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 12,
+  },
+  avatarContainer: {
+    marginRight: 12,
+  },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#111827',
+  },
+  avatarFallback: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#03CA59',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  chatTextContainer: {
+    flex: 1,
+  },
+  // Legacy session styles (kept to avoid changing anything else, even if unused now)
   sessionItem: {
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
     padding: 15,
     marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  sessionName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
+  sessionItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
-  sessionCode: {
-    fontSize: 14,
-    color: '#666',
+  sessionAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sessionAvatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: '#03CA59',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sessionAvatarInitial: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  sessionInfo: {
+    flex: 1,
+  },
+  chatName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#F9FAFB',
     marginBottom: 2,
   },
-  sessionDates: {
+  chatCode: {
     fontSize: 12,
-    color: '#999',
+    color: '#9CA3AF',
+    marginBottom: 2,
+  },
+  chatDates: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  swipeDelete: {
+    backgroundColor: '#DC2626',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderRadius: 18,
+    marginRight: 20,
+    marginTop: 12,
+  },
+  swipeDeleteText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
   },
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
-    color: '#666',
-    marginTop: 50,
+    color: '#9CA3AF',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
+    backgroundColor: '#0B1220',
+    borderRadius: 18,
+    padding: 24,
     width: '90%',
     maxWidth: 400,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#F9FAFB',
     textAlign: 'center',
     marginBottom: 20,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: '#1F2937',
+    borderRadius: 12,
+    padding: 14,
     fontSize: 16,
     marginBottom: 12,
+    backgroundColor: '#020617',
+    color: '#F9FAFB',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -384,15 +619,22 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalButton: {
-    backgroundColor: '#10B981',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     flex: 1,
     marginHorizontal: 5,
     alignItems: 'center',
   },
+  modalPrimaryButton: {
+    backgroundColor: '#03CA59',
+  },
   cancelButton: {
-    backgroundColor: '#6B7280',
+    backgroundColor: '#374151',
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   buttonDisabled: {
     opacity: 0.6,

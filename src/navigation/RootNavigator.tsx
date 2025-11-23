@@ -15,16 +15,20 @@ import { useAppTheme } from '../contexts/ThemeContext';
 
 import CameraScreen from '../screens/CameraScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
+import ChatScreen from '../screens/ChatScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
 import RunScreen from '../screens/RunScreen';
 import SessionLobbyScreen from '../screens/SessionLobbyScreen';
+import SessionLeaderboardScreen from '../screens/SessionLeaderboardScreen';
+import SessionSettingsScreen from '../screens/SessionSettingsScreen';
 import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import SettingsNavigator from './SettingsNavigator';
+import LeaderboardScreen from '../../app/leaderboard/LeaderboardScreen';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -33,7 +37,7 @@ enableScreens(true);
 export type RootTabParamList = {
   Home: undefined;
   Run: undefined;
-  Sessions: undefined;
+  Chats: undefined;
   Settings: undefined;
 };
 
@@ -52,8 +56,8 @@ function MainTabs() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Run') {
             iconName = focused ? 'walk' : 'walk-outline';
-          } else if (route.name === 'Sessions') {
-            iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Chats') {
+            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           } else {
@@ -86,10 +90,10 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Sessions"
+        name="Chats"
         component={SessionsHomeScreen}
         options={{
-          title: 'Sessions',
+          title: 'Chats',
         }}
       />
       <Tab.Screen
@@ -158,6 +162,20 @@ export default function RootNavigator() {
           <Stack.Screen name="JoinSession" component={JoinSessionScreen} />
           <Stack.Screen name="SessionLobby" component={SessionLobbyScreen} />
           <Stack.Screen
+            name="SessionLeaderboard"
+            component={SessionLeaderboardScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="SessionSettings"
+            component={SessionSettingsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
             name="Challenges"
             component={ChallengesScreen}
             options={{
@@ -170,6 +188,16 @@ export default function RootNavigator() {
           <Stack.Screen
             name="MasterMap"
             component={MasterMapScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Chat"
+            component={ChatScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Leaderboard"
+            component={LeaderboardScreen}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>

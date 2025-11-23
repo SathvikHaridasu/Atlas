@@ -3,18 +3,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Circle, LatLng, MapPressEvent, Marker, Polygon, Polyline, Region } from "react-native-maps";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMapState } from "../contexts/MapStateContext";
 import { useRunStats } from "../contexts/RunStatsContext";
 import { useAppTheme } from "../contexts/ThemeContext";
 import {
-  captureTerritoryForRun,
-  fetchTerritoriesForRegion,
-  tileToBounds,
-  type LatLng as TerritoryLatLng,
-  type TerritoryTile,
+    captureTerritoryForRun,
+    fetchTerritoriesForRegion,
+    tileToBounds,
+    type LatLng as TerritoryLatLng,
+    type TerritoryTile,
 } from "../lib/territoryHelper";
 
 const POINTS_KEY = "userPoints";
