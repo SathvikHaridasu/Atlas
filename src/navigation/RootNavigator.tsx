@@ -13,22 +13,23 @@ import { enableScreens } from 'react-native-screens';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 
+import LeaderboardScreen from '../../app/leaderboard/LeaderboardScreen';
 import CameraScreen from '../screens/CameraScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import ChatScreen from '../screens/ChatScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
+import FeedScreen from '../screens/FeedScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
 import RunScreen from '../screens/RunScreen';
-import SessionLobbyScreen from '../screens/SessionLobbyScreen';
 import SessionLeaderboardScreen from '../screens/SessionLeaderboardScreen';
+import SessionLobbyScreen from '../screens/SessionLobbyScreen';
 import SessionSettingsScreen from '../screens/SessionSettingsScreen';
 import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import SettingsNavigator from './SettingsNavigator';
-import LeaderboardScreen from '../../app/leaderboard/LeaderboardScreen';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -156,6 +157,16 @@ export default function RootNavigator() {
             component={CameraScreen}
             options={{
               headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="Feed"
+            component={FeedScreen}
+            options={{
+              headerShown: true,
+              title: 'Feed',
+              headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
+              headerTintColor: isDark ? '#F9FAFB' : '#111111',
             }}
           />
           <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
