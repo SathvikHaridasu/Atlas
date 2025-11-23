@@ -223,20 +223,21 @@ export default function CameraScreen() {
     flashMode === 'auto' ? 'flash-auto' : flashMode === 'on' ? 'flash-on' : 'flash-off';
 
   return (
-    <View style={styles.container}>
-      {/* Camera Preview */}
-      <TouchableOpacity
-        style={styles.cameraContainer}
-        activeOpacity={1}
-        onPress={handlePreviewTap}
-      >
-        <CameraView
-          style={styles.camera}
-          facing={cameraFacing}
-          flash={flashMode}
-          mode="video"
-        />
-      </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
+      <View style={styles.container}>
+        {/* Camera Preview */}
+        <TouchableOpacity
+          style={styles.cameraContainer}
+          activeOpacity={1}
+          onPress={handlePreviewTap}
+        >
+          <CameraView
+            style={styles.camera}
+            facing={cameraFacing}
+            flash={flashMode}
+            mode="video"
+          />
+        </TouchableOpacity>
 
       {/* Top Gradient Overlay */}
       <LinearGradient
@@ -311,7 +312,7 @@ export default function CameraScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
 
       {/* Recording Indicator */}
       {isRecording && (
@@ -458,11 +459,16 @@ export default function CameraScreen() {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
   container: {
     flex: 1,
     backgroundColor: '#000000',
