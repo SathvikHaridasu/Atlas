@@ -13,6 +13,7 @@ import { enableScreens } from 'react-native-screens';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 
+import CameraScreen from '../screens/CameraScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -146,6 +147,14 @@ export default function RootNavigator() {
       {user ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen
+            name="Camera"
+            component={CameraScreen}
+            options={{
+              headerShown: false,
+              presentation: 'fullScreenModal',
+            }}
+          />
           <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
           <Stack.Screen name="JoinSession" component={JoinSessionScreen} />
           <Stack.Screen name="SessionLobby" component={SessionLobbyScreen} />
