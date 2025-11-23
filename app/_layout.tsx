@@ -22,23 +22,27 @@ function RootLayoutNav() {
     if (loading) return;
 
     const inAuthGroup = segments[0] === 'auth';
-    const inPortalGroup = segments[0] === 'portal';
-    const inScanGroup = segments[0] === 'scan';
+    const inTabsGroup = segments[0] === '(tabs)';
 
-    if (!user && !inAuthGroup && !inScanGroup) {
-      // Redirect to auth if not logged in (except when on auth or scan screens)
-      router.replace('/auth');
-    } else if (user && inAuthGroup) {
-      // Redirect to portal if logged in and on auth screen
-      router.replace('/portal');
+    // If not authenticated, redirect to auth
+    if (!user) {
+      if (!inAuthGroup) {
+        router.replace('/auth');
+      }
     }
-  }, [user, loading, segments]);
+    // If authenticated
+    else {
+      // Redirect away from auth screen to home
+      if (inAuthGroup) {
+        router.replace('/(tabs)');
+      }
+      // Tabs are accessible when authenticated
+    }
+  }, [user, loading, segments, router]);
 
   return (
     <Stack>
       <Stack.Screen name="auth" options={{ headerShown: false }} />
-      <Stack.Screen name="scan" options={{ headerShown: false }} />
-      <Stack.Screen name="portal" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       <Stack.Screen name="leaderboard/LeaderboardScreen" options={{ headerShown: false }} />

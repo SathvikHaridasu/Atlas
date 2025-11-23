@@ -51,6 +51,10 @@ export default function HomeScreen() {
     navigation.navigate('Chat' as never);
   };
 
+  const handleOpenCamera = () => {
+    navigation.navigate('Camera' as never);
+  };
+
   const weeklyGoalKm = 10;
   const weekProgress = Math.min(parseFloat(distanceKm) / weeklyGoalKm, 1);
 
@@ -100,13 +104,22 @@ export default function HomeScreen() {
           <Text style={[styles.appTitle, { color: theme.text }]}>Atlas Run</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={handleViewChallenges}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons name="emoji-events" size={24} color={theme.accent} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={[styles.cameraButton, { borderColor: theme.accent }]}
+            onPress={handleOpenCamera}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="camera-outline" size={18} color={theme.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.iconButton, { marginLeft: 12 }]}
+            onPress={handleViewChallenges}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="emoji-events" size={24} color={theme.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -262,6 +275,18 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginLeft: 8,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cameraButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconButton: {
     padding: 8,
