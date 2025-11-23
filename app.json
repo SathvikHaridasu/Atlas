@@ -10,6 +10,9 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryAddUsageDescription": "This app needs photo library access to save videos."
+      },
       "config": {
         "googleMapsApiKey": "AIzaSyDOfKSS7APkXPPYHwPrVi_6Q3uZoHiuWYY"
       }
@@ -45,6 +48,13 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to save videos.",
+          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save videos to your photo library."
         }
       ]
     ],
