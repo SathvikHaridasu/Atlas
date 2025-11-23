@@ -13,22 +13,22 @@ import { enableScreens } from 'react-native-screens';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 
+import LeaderboardScreen from '../../app/leaderboard/LeaderboardScreen';
 import CameraScreen from '../screens/CameraScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import ChatScreen from '../screens/ChatScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
+import DareFeedScreen from '../screens/DareFeedScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
 import RunScreen from '../screens/RunScreen';
-import SessionLobbyScreen from '../screens/SessionLobbyScreen';
 import SessionLeaderboardScreen from '../screens/SessionLeaderboardScreen';
+import SessionLobbyScreen from '../screens/SessionLobbyScreen';
 import SessionSettingsScreen from '../screens/SessionSettingsScreen';
 import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
-import SettingsNavigator from './SettingsNavigator';
-import LeaderboardScreen from '../../app/leaderboard/LeaderboardScreen';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -38,7 +38,7 @@ export type RootTabParamList = {
   Home: undefined;
   Run: undefined;
   Chats: undefined;
-  Settings: undefined;
+  DareFeed: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -58,8 +58,8 @@ function MainTabs() {
             iconName = focused ? 'walk' : 'walk-outline';
           } else if (route.name === 'Chats') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-          } else if (route.name === 'Settings') {
-            iconName = focused ? 'settings' : 'settings-outline';
+          } else if (route.name === 'DareFeed') {
+            iconName = focused ? 'tv' : 'tv-outline';
           } else {
             iconName = 'help-outline';
           }
@@ -97,10 +97,10 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Settings"
-        component={SettingsNavigator}
+        name="DareFeed"
+        component={DareFeedScreen}
         options={{
-          title: 'Settings',
+          title: 'Dare Feed',
           headerShown: false,
         }}
       />
