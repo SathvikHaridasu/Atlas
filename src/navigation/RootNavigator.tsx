@@ -3,6 +3,7 @@
 // expo install react-native-screens react-native-safe-area-context
 // npm install @react-navigation/native-stack @react-navigation/bottom-tabs
 
+import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,11 +14,16 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 
 import ChallengesScreen from '../screens/ChallengesScreen';
-import ChatScreen from '../screens/ChatScreen';
+import CreateSessionScreen from '../screens/CreateSessionScreen';
 import HomeScreen from '../screens/HomeScreen';
+import JoinSessionScreen from '../screens/JoinSessionScreen';
+import MasterMapScreen from '../screens/MasterMapScreen';
 import RunScreen from '../screens/RunScreen';
-import SettingsScreen from '../screens/SettingsScreen';
+import SessionLobbyScreen from '../screens/SessionLobbyScreen';
+import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
+import SignUpScreen from '../screens/SignUpScreen';
+import SettingsNavigator from './SettingsNavigator';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -26,9 +32,8 @@ enableScreens(true);
 export type RootTabParamList = {
   Home: undefined;
   Run: undefined;
-  Chat: undefined;
+  Sessions: undefined;
   Settings: undefined;
-  Challenges: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -37,17 +42,39 @@ const Stack = createNativeStackNavigator();
 // Main tabs navigator (shown when user is logged in)
 function MainTabs() {
   return (
-    <Tab.Navigator>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap;
+
+          if (route.name === 'Home') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Run') {
+            iconName = focused ? 'walk' : 'walk-outline';
+          } else if (route.name === 'Sessions') {
+            iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Settings') {
+            iconName = focused ? 'settings' : 'settings-outline';
+          } else {
+            iconName = 'help-outline';
+          }
+
+          return <Ionicons name={iconName} size={24} color={color} />;
+        },
+        tabBarActiveTintColor: '#03CA59',
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginBottom: 4,
+        },
+      })}
+    >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{
           title: 'Home',
           headerShown: false,
-          // TODO: Add icon using @expo/vector-icons/Ionicons
-          // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="home" size={size} color={color} />
-          // ),
         }}
       />
       <Tab.Screen
@@ -55,32 +82,21 @@ function MainTabs() {
         component={RunScreen}
         options={{
           title: 'Run',
-          // TODO: Add icon using @expo/vector-icons/Ionicons
-          // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="fitness" size={size} color={color} />
-          // ),
         }}
       />
       <Tab.Screen
-        name="Chat"
-        component={ChatScreen}
+        name="Sessions"
+        component={SessionsHomeScreen}
         options={{
-          title: 'Group Chat',
-          // TODO: Add icon using @expo/vector-icons/Ionicons
-          // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="chatbubbles" size={size} color={color} />
-          // ),
+          title: 'Sessions',
         }}
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsNavigator}
         options={{
           title: 'Settings',
-          // TODO: Add icon using @expo/vector-icons/Ionicons
-          // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="settings" size={size} color={color} />
-          // ),
+          headerShown: false,
         }}
       />
     </Tab.Navigator>
@@ -96,6 +112,11 @@ function AuthStack() {
         component={SignInScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="SignUp"
+        component={SignUpScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
@@ -107,7 +128,14 @@ export default function RootNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#020202' : '#FFFFFF' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: isDark ? '#020202' : '#FFFFFF',
+        }}
+      >
         <ActivityIndicator size="large" color="#03CA59" />
       </View>
     );
@@ -118,6 +146,9 @@ export default function RootNavigator() {
       {user ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
+          <Stack.Screen name="JoinSession" component={JoinSessionScreen} />
+          <Stack.Screen name="SessionLobby" component={SessionLobbyScreen} />
           <Stack.Screen
             name="Challenges"
             component={ChallengesScreen}
@@ -128,6 +159,11 @@ export default function RootNavigator() {
               headerTintColor: isDark ? '#F9FAFB' : '#111111',
             }}
           />
+          <Stack.Screen
+            name="MasterMap"
+            component={MasterMapScreen}
+            options={{ headerShown: false }}
+          />
         </Stack.Navigator>
       ) : (
         <AuthStack />
@@ -135,4 +171,3 @@ export default function RootNavigator() {
     </NavigationContainer>
   );
 }
-

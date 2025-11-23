@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function SignInScreen() {
+export default function SignInScreen({ navigation }: any) {
   const { signIn, loading, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,7 +39,7 @@ export default function SignInScreen() {
 
   const handleSignIn = async () => {
     setError('');
-    
+
     if (!email.trim() || !password.trim()) {
       setError('Please enter both email and password');
       return;
@@ -129,6 +129,15 @@ export default function SignInScreen() {
                   ) : (
                     <Text style={styles.buttonText}>Log In</Text>
                   )}
+                </TouchableOpacity>
+
+                {/* Sign Up Link */}
+                <TouchableOpacity
+                  style={styles.signUpLink}
+                  onPress={() => navigation.navigate('SignUp')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.signUpText}>No account? Create one here!</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -253,6 +262,14 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
+  signUpLink: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  signUpText: {
+    color: '#2563EB',
+    fontSize: 14,
+  },
   buttonDisabled: {
     opacity: 0.6,
   },
@@ -285,4 +302,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
