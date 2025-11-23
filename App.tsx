@@ -1,6 +1,7 @@
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './contexts/AuthContext';
+import { GoalsProvider } from './src/contexts/GoalsContext';
 import { MapStateProvider } from './src/contexts/MapStateContext';
 import { RunStatsProvider } from './src/contexts/RunStatsContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
@@ -12,9 +13,11 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <RunStatsProvider>
-            <MapStateProvider>
-              <RootNavigator />
-            </MapStateProvider>
+            <GoalsProvider>
+              <MapStateProvider>
+                <RootNavigator />
+              </MapStateProvider>
+            </GoalsProvider>
           </RunStatsProvider>
         </AuthProvider>
       </ThemeProvider>

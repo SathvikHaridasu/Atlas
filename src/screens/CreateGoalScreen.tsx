@@ -13,12 +13,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useGoals, Goal, GoalStep } from '../contexts/GoalsContext';
 import { useAppTheme } from '../contexts/ThemeContext';
-import { GoalStep, GoalType, NewGoal } from '../types/goals';
+import { GoalType, NewGoal } from '../types/goals';
 
 export default function CreateGoalScreen() {
   const { theme } = useAppTheme();
   const navigation = useNavigation();
+  const { addGoal } = useGoals();
 
   const [goalTitle, setGoalTitle] = useState('');
   const [goalType, setGoalType] = useState<GoalType>('distance');
@@ -140,23 +142,41 @@ export default function CreateGoalScreen() {
       return;
     }
 
-    const roundedTarget = Math.round(targetValue);
-    const roundedSteps = steps.map((step) => ({
-      ...step,
-      target: Math.round(step.target),
+    const unitLabel =
+      goalType === 'distance'
+        ? 'km'
+        : goalType === 'time'
+        ? 'min'
+        : goalType === 'sessions'
+        ? 'runs'
+        : 'pts';
+
+    const goalId = `goal_${Date.now()}`;
+    
+    // Generate default steps evenly split across targetValue
+    const stepTargetValue = Math.round(targetValue / stepCount);
+    const steps: GoalStep[] = Array.from({ length: stepCount }).map((_, index) => ({
+      id: `${goalId}-step-${index + 1}`,
+      label: `Step ${index + 1}`,
+      targetValue: index === stepCount - 1 
+        ? targetValue - (stepTargetValue * (stepCount - 1)) // Last step gets remainder
+        : stepTargetValue,
+      currentValue: 0,
     }));
 
-    const newGoal: NewGoal = {
+    const newGoal: Goal = {
+      id: goalId,
       title: goalTitle.trim(),
       type: goalType,
-      target: roundedTarget,
-      steps: roundedSteps,
-      durationWeeks: Math.round(durationWeeks),
-      startDate: startToday ? new Date() : startDate || new Date(),
+      targetValue: Math.round(targetValue),
+      currentValue: 0,
+      unitLabel,
+      stepCount: stepCount,
+      steps,
+      createdAt: new Date().toISOString(),
     };
 
-    console.log('New Goal Created:', newGoal);
-    // TODO: Add goal to user's goals list
+    addGoal(newGoal);
     navigation.goBack();
   };
 

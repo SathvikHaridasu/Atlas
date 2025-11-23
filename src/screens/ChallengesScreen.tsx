@@ -3,38 +3,14 @@ import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useGoals } from '../contexts/GoalsContext';
 import { useAppTheme } from '../contexts/ThemeContext';
-import { GoalType, UserGoal } from '../types/goals';
+import { GoalType } from '../types/goals';
 
 export default function ChallengesScreen() {
   const { theme } = useAppTheme();
   const navigation = useNavigation();
-
-  // Mock user goals for initial display
-  const mockGoals: UserGoal[] = [
-    {
-      id: '1',
-      title: 'Run 30 km this month',
-      type: 'distance',
-      target: 30,
-      current: 15,
-      steps: [],
-      durationWeeks: 4,
-      startDate: new Date(),
-      createdAt: new Date(),
-    },
-    {
-      id: '2',
-      title: 'Complete 5 runs',
-      type: 'sessions',
-      target: 5,
-      current: 2,
-      steps: [],
-      durationWeeks: 2,
-      startDate: new Date(),
-      createdAt: new Date(),
-    },
-  ];
+  const { goals } = useGoals();
 
   const getGoalIcon = (type: GoalType): string => {
     switch (type) {
@@ -66,9 +42,8 @@ export default function ChallengesScreen() {
     }
   };
 
-  const formatProgress = (goal: UserGoal): string => {
-    const unit = getGoalUnit(goal.type);
-    return `${Math.round(goal.current)} / ${Math.round(goal.target)} ${unit}`;
+  const formatProgress = (goal: { currentValue: number; targetValue: number; unitLabel: string }): string => {
+    return `${Math.round(goal.currentValue)} / ${Math.round(goal.targetValue)} ${goal.unitLabel}`;
   };
 
   const handleCreateGoal = () => {
@@ -107,12 +82,14 @@ export default function ChallengesScreen() {
         </TouchableOpacity>
 
         {/* User Goals List */}
-        {mockGoals.map((goal) => {
-          const progress = Math.min(goal.current / goal.target, 1);
+        {goals.map((goal) => {
+          const progress = Math.min(goal.currentValue / goal.targetValue, 1);
           return (
-            <View
+            <TouchableOpacity
               key={goal.id}
               style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => navigation.navigate('GoalDetail' as never, { goalId: goal.id } as never)}
+              activeOpacity={0.8}
             >
               <View style={styles.cardHeader}>
                 <MaterialIcons name={getGoalIcon(goal.type) as any} size={24} color={theme.accent} />
@@ -134,7 +111,7 @@ export default function ChallengesScreen() {
               <Text style={[styles.progressText, { color: theme.mutedText }]}>
                 {Math.round(progress * 100)}% complete
               </Text>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </ScrollView>

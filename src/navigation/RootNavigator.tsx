@@ -17,6 +17,7 @@ import ChallengesScreen from '../screens/ChallengesScreen';
 import ChatScreen from '../screens/ChatScreen';
 import CreateGoalScreen from '../screens/CreateGoalScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
+import GoalDetailScreen from '../screens/GoalDetailScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
@@ -172,6 +173,16 @@ export default function RootNavigator() {
             options={{
               headerShown: true,
               title: 'Create Goal',
+              headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
+              headerTintColor: isDark ? '#F9FAFB' : '#111111',
+            }}
+          />
+          <Stack.Screen
+            name="GoalDetail"
+            component={GoalDetailScreen}
+            options={{
+              headerShown: true,
+              title: 'Goal Details',
               headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
               headerTintColor: isDark ? '#F9FAFB' : '#111111',
             }}
