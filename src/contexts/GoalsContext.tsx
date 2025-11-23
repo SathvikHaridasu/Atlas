@@ -1,9 +1,9 @@
 import React, { createContext, ReactNode, useContext, useState } from 'react';
-import { Goal, GoalType } from '../types/goal';
+import { Goal, GoalType, getGoalUnitLabel } from '../types/goal';
 
 interface GoalsContextValue {
   goals: Goal[];
-  addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'current'>) => void;
+  addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'currentValue'>) => void;
   updateGoal: (goalId: string, updates: Partial<Goal>) => void;
   deleteGoal: (goalId: string) => void;
 }
@@ -13,16 +13,13 @@ const GoalsContext = createContext<GoalsContextValue | undefined>(undefined);
 export const GoalsProvider = ({ children }: { children: ReactNode }) => {
   const [goals, setGoals] = useState<Goal[]>([]);
 
-  const addGoal = (goalData: Omit<Goal, 'id' | 'createdAt' | 'current'>) => {
+  const addGoal = (goalData: Omit<Goal, 'id' | 'createdAt' | 'currentValue'>) => {
     const newGoal: Goal = {
       ...goalData,
       id: `goal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date(),
-      current: 0,
-      steps: goalData.steps.map((step) => ({
-        ...step,
-        current: 0,
-      })),
+      createdAt: new Date().toISOString(),
+      currentValue: 0,
+      unitLabel: goalData.unitLabel || getGoalUnitLabel(goalData.type),
     };
     setGoals((prevGoals) => [newGoal, ...prevGoals]); // Add new goal at the top
   };
@@ -49,4 +46,3 @@ export const useGoals = () => {
   if (!ctx) throw new Error('useGoals must be used inside GoalsProvider');
   return ctx;
 };
-

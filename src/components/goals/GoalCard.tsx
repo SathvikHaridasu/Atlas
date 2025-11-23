@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../contexts/ThemeContext';
-import { Goal, GoalType } from '../../types/goal';
+import { Goal, GoalType, formatGoalProgress } from '../../types/goal';
 
 interface GoalCardProps {
   goal: Goal;
@@ -10,21 +10,6 @@ interface GoalCardProps {
 
 export default function GoalCard({ goal }: GoalCardProps) {
   const { theme } = useAppTheme();
-
-  const formatValue = (value: number, type: GoalType): string => {
-    switch (type) {
-      case 'distance':
-        return `${value.toFixed(1)} km`;
-      case 'time':
-        return `${value} min`;
-      case 'sessions':
-        return `${value} run${value !== 1 ? 's' : ''}`;
-      case 'points':
-        return `${value.toLocaleString()} pts`;
-      default:
-        return `${value}`;
-    }
-  };
 
   const getIconName = (type: GoalType): keyof typeof MaterialIcons.glyphMap => {
     switch (type) {
@@ -41,21 +26,31 @@ export default function GoalCard({ goal }: GoalCardProps) {
     }
   };
 
-  const progress = goal.target > 0 ? Math.min(goal.current / goal.target, 1) : 0;
+  const progress = goal.targetValue > 0 ? Math.min(goal.currentValue / goal.targetValue, 1) : 0;
   const progressPercent = Math.round(progress * 100);
 
-  const formatDate = (date: Date): string => {
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
+
+  const endDate = new Date(goal.startDate);
+  endDate.setDate(endDate.getDate() + goal.durationWeeks * 7);
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
       <View style={styles.cardHeader}>
         <MaterialIcons name={getIconName(goal.type)} size={24} color={theme.accent} />
         <View style={styles.cardHeaderText}>
-          <Text style={[styles.cardTitle, { color: theme.text }]}>{goal.title}</Text>
-          <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>
-            {formatValue(goal.current, goal.type)} / {formatValue(goal.target, goal.type)}
+          <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+            {goal.title}
+          </Text>
+          <Text
+            style={[styles.cardSubtitle, { color: theme.mutedText }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {formatGoalProgress(goal.currentValue, goal.targetValue, goal.unitLabel)}
           </Text>
         </View>
       </View>
@@ -72,7 +67,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
           {progressPercent}% complete
         </Text>
         <Text style={[styles.dateText, { color: theme.mutedText }]}>
-          Ends {formatDate(goal.endDate)}
+          Ends {formatDate(endDate.toISOString())}
         </Text>
       </View>
     </View>
@@ -94,6 +89,7 @@ const styles = StyleSheet.create({
   cardHeaderText: {
     marginLeft: 12,
     flex: 1,
+    flexShrink: 1,
   },
   cardTitle: {
     fontSize: 18,
@@ -125,4 +121,3 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
-

@@ -12,30 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { useGoals } from '../contexts/GoalsContext';
-import { GoalType, GoalStep } from '../types/goal';
+import { GoalType, getGoalUnitLabel } from '../types/goal';
 import SectionCard from '../components/goals/SectionCard';
 import GoalTypePills from '../components/goals/GoalTypePills';
-import LabeledSlider from '../components/goals/LabeledSlider';
-import StepRowPreview from '../components/goals/StepRowPreview';
-import SummaryCard from '../components/goals/SummaryCard';
-
-// Helper function to split target into steps
-function splitTargetIntoSteps(total: number, count: number): number[] {
-  if (count === 1) return [total];
-  const step = total / count;
-  const steps: number[] = [];
-  let remaining = total;
-  for (let i = 0; i < count - 1; i++) {
-    const value = Math.round(step * 10) / 10; // Round to 1 decimal
-    steps.push(value);
-    remaining -= value;
-  }
-  steps.push(Math.round(remaining * 10) / 10);
-  return steps;
-}
 
 // Placeholder rotation for goal title
 const goalTitlePlaceholders = [
@@ -55,30 +38,14 @@ export default function CreateGoalScreen() {
   const [goalTitle, setGoalTitle] = useState('');
   const [goalType, setGoalType] = useState<GoalType>('distance');
   const [targetValue, setTargetValue] = useState<number>(10);
-  const [stepCount, setStepCount] = useState(3);
-  const [stepNames, setStepNames] = useState<string[]>(['Step 1', 'Step 2', 'Step 3']);
-  const [durationWeeks, setDurationWeeks] = useState(4);
+  const [durationWeeks, setDurationWeeks] = useState<number>(4);
+  const [startDate, setStartDate] = useState<Date>(new Date());
   const [startMode, setStartMode] = useState<'today' | 'custom'>('today');
-  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Modal states
   const [showNumericModal, setShowNumericModal] = useState(false);
   const [numericInputValue, setNumericInputValue] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  // Update step names when step count changes
-  React.useEffect(() => {
-    const newNames: string[] = [];
-    for (let i = 1; i <= stepCount; i++) {
-      newNames.push(stepNames[i - 1] || `Step ${i}`);
-    }
-    setStepNames(newNames);
-  }, [stepCount]);
-
-  // Calculate step targets
-  const stepTargets = useMemo(() => {
-    return splitTargetIntoSteps(targetValue, stepCount);
-  }, [targetValue, stepCount]);
 
   // Get slider config based on goal type
   const sliderConfig = useMemo(() => {
@@ -101,25 +68,9 @@ export default function CreateGoalScreen() {
     setTargetValue(sliderConfig.default);
   }, [goalType]);
 
-  // Format value for display
-  const formatTargetValue = (value: number): string => {
-    switch (goalType) {
-      case 'distance':
-        return `${value.toFixed(1)} km`;
-      case 'time':
-        return `${value} min`;
-      case 'sessions':
-        return `${value} run${value !== 1 ? 's' : ''}`;
-      case 'points':
-        return `${value.toLocaleString()} pts`;
-      default:
-        return `${value}`;
-    }
-  };
-
-  // Get target label
-  const getTargetLabel = (): string => {
-    switch (goalType) {
+  // Universal helpers
+  const getTargetLabel = (type: GoalType): string => {
+    switch (type) {
       case 'distance':
         return 'Total distance';
       case 'time':
@@ -131,6 +82,15 @@ export default function CreateGoalScreen() {
       default:
         return 'Goal target';
     }
+  };
+
+  const getTargetDisplay = (type: GoalType, value: number): string => {
+    const unit = getGoalUnitLabel(type);
+    const num = type === 'sessions' ? value.toFixed(0) : value.toFixed(1);
+
+    if (type === 'sessions') return `${num} ${unit}`;
+    if (type === 'points') return `${Number(num).toLocaleString()} ${unit}`;
+    return `${num} ${unit}`;
   };
 
   // Handle numeric input
@@ -147,26 +107,16 @@ export default function CreateGoalScreen() {
   const handleCreateGoal = () => {
     if (!goalTitle.trim() || targetValue === 0) return;
 
-    const today = new Date();
-    const computedStartDate = startMode === 'today' ? today : startDate || today;
-    const computedEndDate = new Date(computedStartDate);
-    computedEndDate.setDate(computedEndDate.getDate() + durationWeeks * 7);
-
-    const steps: GoalStep[] = stepTargets.map((target, index) => ({
-      id: `step_${index}`,
-      name: stepNames[index] || `Step ${index + 1}`,
-      target,
-      current: 0,
-    }));
+    const unitLabel = getGoalUnitLabel(goalType);
+    const computedStartDate = startMode === 'today' ? new Date() : startDate;
 
     addGoal({
       title: goalTitle.trim(),
       type: goalType,
-      target: targetValue,
-      steps,
+      targetValue,
+      unitLabel,
       durationWeeks,
-      startDate: computedStartDate,
-      endDate: computedEndDate,
+      startDate: computedStartDate.toISOString(),
     });
 
     navigation.goBack();
@@ -178,6 +128,13 @@ export default function CreateGoalScreen() {
   // Random placeholder
   const placeholderIndex = Math.floor(Math.random() * goalTitlePlaceholders.length);
   const placeholder = goalTitlePlaceholders[placeholderIndex];
+
+  // Summary calculations
+  const unit = getGoalUnitLabel(goalType);
+  const targetText = getTargetDisplay(goalType, targetValue);
+  const computedStartDate = startMode === 'today' ? new Date() : startDate;
+  const endDate = new Date(computedStartDate);
+  endDate.setDate(endDate.getDate() + durationWeeks * 7);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
@@ -221,73 +178,43 @@ export default function CreateGoalScreen() {
             title="Goal target"
             helperText="Drag the slider or tap the number to adjust your target."
           >
-            <LabeledSlider
-              label={getTargetLabel()}
+            <Text style={[styles.targetLabel, { color: theme.text }]}>
+              {getTargetLabel(goalType)}
+            </Text>
+            <View style={styles.targetValueContainer}>
+              <Text
+                style={[styles.targetValue, { color: theme.text }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {getTargetDisplay(goalType, targetValue)}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setNumericInputValue(targetValue.toString());
+                  setShowNumericModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tapToEdit, { color: theme.accent }]}>
+                  Tap number to type exact value
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Slider
+              style={styles.slider}
               value={targetValue}
-              min={sliderConfig.min}
-              max={sliderConfig.max}
+              minimumValue={sliderConfig.min}
+              maximumValue={sliderConfig.max}
               step={sliderConfig.step}
               onValueChange={setTargetValue}
-              formatValue={formatTargetValue}
-              onTapToEdit={() => {
-                setNumericInputValue(targetValue.toString());
-                setShowNumericModal(true);
-              }}
+              minimumTrackTintColor={theme.accent}
+              maximumTrackTintColor={theme.border}
+              thumbTintColor={theme.accent}
             />
           </SectionCard>
 
-          {/* Card 4: Steps */}
-          <SectionCard
-            title="Goal steps"
-            helperText="Use steps to make big goals feel easier."
-          >
-            <View style={styles.stepsHeader}>
-              <Text style={[styles.stepsLabel, { color: theme.text }]}>
-                Break this goal into smaller steps
-              </Text>
-              <Text style={[styles.stepsChip, { color: theme.accent }]}>
-                {stepCount} {stepCount === 1 ? 'step' : 'steps'}
-              </Text>
-            </View>
-            <View style={styles.stepsSliderContainer}>
-              <Text style={[styles.stepsSliderLabel, { color: theme.text }]}>
-                Number of steps
-              </Text>
-              <View style={styles.stepsSliderRow}>
-                <Slider
-                  style={styles.stepsSlider}
-                  value={stepCount}
-                  minimumValue={1}
-                  maximumValue={5}
-                  step={1}
-                  onValueChange={(value) => setStepCount(Math.round(value))}
-                  minimumTrackTintColor={theme.accent}
-                  maximumTrackTintColor={theme.border}
-                  thumbTintColor={theme.accent}
-                />
-                <Text style={[styles.stepsSliderValue, { color: theme.text }]}>
-                  {stepCount} {stepCount === 1 ? 'step' : 'steps'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.stepsList}>
-              {stepTargets.map((target, index) => (
-                <StepRowPreview
-                  key={index}
-                  stepName={stepNames[index] || `Step ${index + 1}`}
-                  stepTarget={target}
-                  goalType={goalType}
-                  onNameChange={(name) => {
-                    const newNames = [...stepNames];
-                    newNames[index] = name;
-                    setStepNames(newNames);
-                  }}
-                />
-              ))}
-            </View>
-          </SectionCard>
-
-          {/* Card 5: Duration */}
+          {/* Card 4: Duration */}
           <SectionCard
             title="Duration"
             helperText="Set a clear end date so you know when you've won."
@@ -360,17 +287,47 @@ export default function CreateGoalScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+            {startMode === 'custom' && (
+              <TouchableOpacity
+                style={[styles.dateButton, { borderColor: theme.border }]}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.dateButtonLabel, { color: theme.text }]}>
+                  {startDate.toDateString()}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {showDatePicker && (
+              <DateTimePicker
+                mode="date"
+                value={startDate}
+                onChange={(event, date) => {
+                  setShowDatePicker(false);
+                  if (date) {
+                    setStartDate(date);
+                  }
+                }}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              />
+            )}
           </SectionCard>
 
-          {/* Card 6: Summary */}
-          <SummaryCard
-            goalType={goalType}
-            targetValue={targetValue}
-            stepCount={stepCount}
-            durationWeeks={durationWeeks}
-            startMode={startMode}
-            startDate={startDate}
-          />
+          {/* Card 5: Summary */}
+          <SectionCard title="Summary">
+            <Text style={[styles.summaryLine, { color: theme.text }]}>
+              You'll aim for{' '}
+              <Text style={{ color: theme.accent, fontWeight: '700' }}>{targetText}</Text> in{' '}
+              <Text style={{ color: theme.accent, fontWeight: '700' }}>
+                {durationWeeks} {durationWeeks === 1 ? 'week' : 'weeks'}
+              </Text>
+              .
+            </Text>
+            <Text style={[styles.timeline, { color: theme.mutedText }]}>
+              {startMode === 'today' ? 'Starts today' : `Starts ${computedStartDate.toDateString()}`} • Ends{' '}
+              {endDate.toDateString()}
+            </Text>
+          </SectionCard>
 
           {/* Bottom spacer */}
           <View style={styles.bottomSpacer} />
@@ -450,40 +407,6 @@ export default function CreateGoalScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* Date Picker Modal (simplified - using basic date selection) */}
-      <Modal
-        visible={showDatePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>Choose start date</Text>
-            <Text style={[styles.modalHelper, { color: theme.mutedText }]}>
-              For a full date picker, you can integrate @react-native-community/datetimepicker
-            </Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, { borderColor: theme.border }]}
-                onPress={() => {
-                  setStartDate(new Date());
-                  setShowDatePicker(false);
-                }}
-              >
-                <Text style={[styles.modalButtonText, { color: theme.text }]}>Today</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: theme.accent }]}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={[styles.modalButtonText, { color: '#020617' }]}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -520,44 +443,27 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
   },
-  stepsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  stepsLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  stepsChip: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  stepsSliderContainer: {
-    marginBottom: 16,
-  },
-  stepsSliderLabel: {
-    fontSize: 14,
+  targetLabel: {
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
   },
-  stepsSliderRow: {
-    flexDirection: 'row',
+  targetValueContainer: {
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 16,
   },
-  stepsSlider: {
-    flex: 1,
+  targetValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  tapToEdit: {
+    fontSize: 12,
+  },
+  slider: {
+    width: '100%',
     height: 40,
-  },
-  stepsSliderValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    minWidth: 60,
-  },
-  stepsList: {
-    marginTop: 8,
+    marginBottom: 8,
   },
   durationContainer: {
     marginBottom: 20,
@@ -580,6 +486,7 @@ const styles = StyleSheet.create({
   startDateRow: {
     flexDirection: 'row',
     gap: 12,
+    marginBottom: 12,
   },
   startDatePill: {
     flex: 1,
@@ -591,6 +498,27 @@ const styles = StyleSheet.create({
   },
   startDatePillText: {
     fontSize: 14,
+  },
+  dateButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  dateButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  summaryLine: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  timeline: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   bottomSpacer: {
     height: 100,
@@ -655,10 +583,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 16,
   },
-  modalHelper: {
-    fontSize: 12,
-    marginBottom: 16,
-  },
   modalInput: {
     borderWidth: 1,
     borderRadius: 12,
@@ -684,4 +608,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
