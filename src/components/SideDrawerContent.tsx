@@ -66,22 +66,10 @@ export default function SideDrawerContent(props: DrawerContentComponentProps) {
       stackRoute: 'Camera',
     },
     {
-      label: 'My Captures',
-      icon: 'albums-outline',
-      drawerRoute: 'MyCaptures',
-      isActive: currentRoute === 'MyCaptures',
-    },
-    {
       label: 'My Goals',
       icon: 'flag-outline',
       drawerRoute: 'MyGoals',
       isActive: currentRoute === 'MyGoals',
-    },
-    {
-      label: 'Favorites',
-      icon: 'heart-outline',
-      drawerRoute: 'Favorites',
-      isActive: currentRoute === 'Favorites',
     },
     {
       label: 'Profile',

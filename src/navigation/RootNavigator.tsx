@@ -288,6 +288,7 @@ function MainDrawer() {
           drawerIcon: ({ color, size }) => (
             <Ionicons name="heart-outline" size={size} color={color} />
           ),
+          drawerItemStyle: { display: 'none' },
         }}
       />
       <Drawer.Screen
@@ -299,6 +300,7 @@ function MainDrawer() {
             <Ionicons name="albums-outline" size={size} color={color} />
           ),
           headerShown: false,
+          drawerItemStyle: { display: 'none' },
         }}
       />
       <Drawer.Screen
