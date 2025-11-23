@@ -10,8 +10,11 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { createSession, getUserSessions, joinSessionWithCode } from '../../lib/sessionService';
+import { getGroupImageUrl } from '../../lib/storageService';
 
 interface Session {
   id: string;
@@ -24,9 +27,13 @@ interface Session {
   week_end?: string;
 }
 
+interface SessionWithAvatar extends Session {
+  groupImageUrl?: string | null;
+}
+
 export default function SessionsHomeScreen({ navigation }: any) {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<SessionWithAvatar[]>([]);
   const [loading, setLoading] = useState(true);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [joinModalVisible, setJoinModalVisible] = useState(false);
@@ -45,12 +52,25 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
     try {
       const userSessions = await getUserSessions(user.id);
-      setSessions(userSessions);
+      
+      // Load group images for each session
+      const sessionsWithAvatars = await Promise.all(
+        userSessions.map(async (session) => {
+          const groupImageUrl = await getGroupImageUrl(session.id);
+          return { ...session, groupImageUrl };
+        })
+      );
+      
+      setSessions(sessionsWithAvatars);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getSessionInitial = (name: string): string => {
+    return name.charAt(0).toUpperCase();
   };
 
   const handleCreateSession = () => {
@@ -149,11 +169,29 @@ export default function SessionsHomeScreen({ navigation }: any) {
             style={styles.sessionItem}
             onPress={() => handleSessionPress(item)}
           >
-            <Text style={styles.sessionName}>{item.name}</Text>
-            <Text style={styles.sessionCode}>Join Code: {item.code || item.join_code}</Text>
-            <Text style={styles.sessionDates}>
-              {item.week_start} - {item.week_end}
-            </Text>
+            <View style={styles.sessionItemLeft}>
+              {item.groupImageUrl ? (
+                <Image
+                  source={{ uri: item.groupImageUrl }}
+                  style={styles.sessionAvatar}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.sessionAvatarPlaceholder}>
+                  <Text style={styles.sessionAvatarInitial}>
+                    {getSessionInitial(item.name)}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.sessionInfo}>
+                <Text style={styles.sessionName}>{item.name}</Text>
+                <Text style={styles.sessionCode}>Join Code: {item.code || item.join_code}</Text>
+                <Text style={styles.sessionDates}>
+                  {item.week_start} - {item.week_end}
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         )}
         ListEmptyComponent={
@@ -293,6 +331,41 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 15,
     marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sessionItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sessionAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sessionAvatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: '#03CA59',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sessionAvatarInitial: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  sessionInfo: {
+    flex: 1,
   },
   sessionName: {
     fontSize: 18,

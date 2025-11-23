@@ -1,6 +1,11 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'expo-image';
+import { useNavigation } from '@react-navigation/native';
 import React, { useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
+  Alert,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -15,6 +20,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
+import { uploadImageToStorage } from '../../lib/storageService';
+import { getGroupImageUrl } from '../../lib/storageService';
 
 interface Message {
   id: string;
@@ -23,11 +30,24 @@ interface Message {
   senderId: string;
   timestamp: Date;
   isMine: boolean;
+  imageUrl?: string;
 }
 
-export default function ChatScreen() {
+interface ChatScreenProps {
+  route?: {
+    params?: {
+      sessionId?: string;
+      sessionName?: string;
+    };
+  };
+}
+
+export default function ChatScreen({ route }: ChatScreenProps = {}) {
   const { user } = useAuth();
   const { theme } = useAppTheme();
+  const navigation = useNavigation();
+  const sessionId = route?.params?.sessionId;
+  const sessionName = route?.params?.sessionName;
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -53,26 +73,193 @@ export default function ChatScreen() {
       timestamp: new Date(Date.now() - 3000000),
       isMine: false,
     },
+    {
+      id: '4',
+      text: 'Here\'s the route I was thinking!',
+      sender: 'Alex',
+      senderId: 'alex123',
+      timestamp: new Date(Date.now() - 2700000),
+      isMine: false,
+      imageUrl: 'https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=400&h=400&fit=crop',
+    },
   ]);
   const [inputText, setInputText] = useState('');
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [groupImageUrl, setGroupImageUrl] = useState<string | null>(null);
   const messagesListRef = useRef<FlatList>(null);
 
-  const handleSend = () => {
-    if (inputText.trim()) {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        text: inputText.trim(),
-        sender: 'You',
-        senderId: user?.id || 'me',
-        timestamp: new Date(),
-        isMine: true,
-      };
-      setMessages([...messages, newMessage]);
-      setInputText('');
-      // Scroll to bottom after sending message
-      setTimeout(() => {
-        messagesListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+  // Load group image if sessionId is available
+  React.useEffect(() => {
+    if (sessionId) {
+      getGroupImageUrl(sessionId).then(setGroupImageUrl);
+    }
+  }, [sessionId]);
+
+  const handlePickImageFromLibrary = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission needed',
+          'Please grant access to your photos to send images.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled && result.assets) {
+        const imageUris = result.assets.map((asset) => asset.uri);
+        setSelectedImages((prev) => [...prev, ...imageUris]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission needed',
+          'Please grant access to your camera to take photos.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setSelectedImages((prev) => [...prev, result.assets[0].uri]);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  const handlePickImage = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Library'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            handleTakePhoto();
+          } else if (buttonIndex === 2) {
+            handlePickImageFromLibrary();
+          }
+        }
+      );
+    } else {
+      // Android: Show alert with options
+      Alert.alert(
+        'Select Image',
+        'Choose an option',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Take Photo', onPress: handleTakePhoto },
+          { text: 'Choose from Library', onPress: handlePickImageFromLibrary },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSend = async () => {
+    const hasText = inputText.trim().length > 0;
+    const hasImages = selectedImages.length > 0;
+
+    if (!hasText && !hasImages) return;
+    if (!user) return;
+
+    // If sessionId exists, upload to Supabase and use sendMessage
+    if (sessionId) {
+      setUploadingImage(true);
+      try {
+        if (hasImages) {
+          for (const imageUri of selectedImages) {
+            try {
+              const imageUrl = await uploadImageToStorage(imageUri, 'chat-images', sessionId);
+              const textToSend = selectedImages.indexOf(imageUri) === 0 && hasText ? inputText.trim() : null;
+              
+              // Import sendMessage from sessionService
+              const { sendMessage } = await import('../../lib/sessionService');
+              await sendMessage(sessionId, user.id, textToSend, imageUrl);
+            } catch (error: any) {
+              console.error('Error uploading image:', error);
+              Alert.alert('Error', `Failed to upload image: ${error.message}`);
+              return;
+            }
+          }
+        } else {
+          const { sendMessage } = await import('../../lib/sessionService');
+          await sendMessage(sessionId, user.id, inputText.trim(), null);
+        }
+
+        setInputText('');
+        setSelectedImages([]);
+        setTimeout(() => {
+          messagesListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } catch (error: any) {
+        Alert.alert('Error', error.message);
+      } finally {
+        setUploadingImage(false);
+      }
+    } else {
+      // Fallback for non-session chats (mock behavior)
+      if (hasText || hasImages) {
+        if (hasImages && selectedImages.length > 1) {
+          selectedImages.forEach((imageUri, index) => {
+            const newMessage: Message = {
+              id: `${Date.now()}-${index}`,
+              text: index === 0 && hasText ? inputText.trim() : '',
+              sender: 'You',
+              senderId: user?.id || 'me',
+              timestamp: new Date(),
+              isMine: true,
+              imageUrl: imageUri,
+            };
+            setMessages((prev) => [...prev, newMessage]);
+          });
+        } else {
+          const newMessage: Message = {
+            id: Date.now().toString(),
+            text: inputText.trim(),
+            sender: 'You',
+            senderId: user?.id || 'me',
+            timestamp: new Date(),
+            isMine: true,
+            imageUrl: selectedImages[0] || undefined,
+          };
+          setMessages((prev) => [...prev, newMessage]);
+        }
+
+        setInputText('');
+        setSelectedImages([]);
+        setTimeout(() => {
+          messagesListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
     }
   };
 
@@ -80,6 +267,13 @@ export default function ChatScreen() {
     const hours = date.getHours();
     const minutes = date.getMinutes();
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  };
+
+  const handleViewLeaderboard = () => {
+    navigation.navigate('Leaderboard' as never, {
+      sessionId,
+      sessionName,
+    } as never);
   };
 
   const renderMessage = ({ item }: { item: Message }) => (
@@ -93,11 +287,31 @@ export default function ChatScreen() {
           item.isMine
             ? [styles.bubbleMine, { backgroundColor: theme.accent }]
             : [styles.bubbleOther, { backgroundColor: theme.card }],
+          item.imageUrl && !item.text && styles.imageOnlyBubble,
         ]}
       >
-        <Text style={[styles.messageText, item.isMine ? styles.textMine : { color: theme.text }]}>
-          {item.text}
-        </Text>
+        {item.imageUrl && (
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={[
+              styles.messageImage,
+              item.text && styles.messageImageWithText,
+            ]}
+            contentFit="cover"
+            transition={200}
+          />
+        )}
+        {item.text ? (
+          <Text
+            style={[
+              styles.messageText,
+              item.isMine ? styles.textMine : { color: theme.text },
+              item.imageUrl && styles.messageTextWithImage,
+            ]}
+          >
+            {item.text}
+          </Text>
+        ) : null}
       </View>
       <Text style={[styles.timestamp, { color: theme.mutedText }]}>{formatTime(item.timestamp)}</Text>
     </View>
@@ -113,7 +327,7 @@ export default function ChatScreen() {
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.contentWrapper}>
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { borderBottomColor: theme.border }]}>
               <View style={styles.headerLeft}>
                 <View style={styles.avatarStack}>
                   <View style={[styles.avatarSmall, styles.avatar1]} />
@@ -121,13 +335,36 @@ export default function ChatScreen() {
                   <View style={[styles.avatarSmall, styles.avatar3]} />
                 </View>
                 <View style={styles.headerText}>
-                  <Text style={styles.groupName}>Neighbourhood Runners</Text>
-                  <Text style={styles.memberCount}>12 members online</Text>
+                  {groupImageUrl ? (
+                    <Image source={{ uri: groupImageUrl }} style={styles.groupAvatarSmall} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.groupAvatarPlaceholder, { backgroundColor: theme.accent }]}>
+                      <Text style={styles.groupAvatarInitial}>
+                        {sessionName ? sessionName.charAt(0).toUpperCase() : 'G'}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.headerTextContent}>
+                    <Text style={[styles.groupName, { color: theme.text }]}>
+                      {sessionName || 'Neighbourhood Runners'}
+                    </Text>
+                    <Text style={[styles.memberCount, { color: theme.mutedText }]}>12 members online</Text>
+                  </View>
                 </View>
               </View>
-              <TouchableOpacity style={styles.infoButton} activeOpacity={0.7}>
-                <Ionicons name="information-circle-outline" size={24} color="#9CA3AF" />
-              </TouchableOpacity>
+              <View style={styles.headerRight}>
+                <TouchableOpacity
+                  style={[styles.leaderboardButton, { backgroundColor: theme.border }]}
+                  onPress={handleViewLeaderboard}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons name="leaderboard" size={18} color={theme.text} />
+                  <Text style={[styles.leaderboardButtonText, { color: theme.text }]}>Leaderboard</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.infoButton} activeOpacity={0.7}>
+                  <Ionicons name="information-circle-outline" size={24} color={theme.mutedText} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Challenge Pill */}
@@ -150,6 +387,31 @@ export default function ChatScreen() {
               inverted={false}
             />
 
+            {/* Image Preview Section */}
+            {selectedImages.length > 0 && (
+              <View style={[styles.imagePreviewContainer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+                <FlatList
+                  horizontal
+                  data={selectedImages}
+                  keyExtractor={(item, index) => `${item}-${index}`}
+                  renderItem={({ item, index }) => (
+                    <View style={styles.imagePreviewWrapper}>
+                      <Image source={{ uri: item }} style={styles.imagePreview} contentFit="cover" />
+                      <TouchableOpacity
+                        style={styles.removeImageButton}
+                        onPress={() => handleRemoveImage(index)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  contentContainerStyle={styles.imagePreviewList}
+                  showsHorizontalScrollIndicator={false}
+                />
+              </View>
+            )}
+
             {/* Fixed Bottom Input Bar */}
             <View
               style={[
@@ -157,8 +419,12 @@ export default function ChatScreen() {
                 { backgroundColor: theme.card, borderTopColor: theme.border },
               ]}
             >
-              <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
-                <Ionicons name="attach-outline" size={24} color={theme.mutedText} />
+              <TouchableOpacity
+                style={styles.attachButton}
+                onPress={handlePickImage}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="image-outline" size={24} color={theme.mutedText} />
               </TouchableOpacity>
               <TextInput
                 style={[styles.input, { backgroundColor: theme.border, color: theme.text }]}
@@ -173,17 +439,26 @@ export default function ChatScreen() {
                 style={[
                   styles.sendButton,
                   { backgroundColor: theme.border },
-                  inputText.trim() && [styles.sendButtonActive, { backgroundColor: theme.accent }],
+                  (inputText.trim() || selectedImages.length > 0) && [
+                    styles.sendButtonActive,
+                    { backgroundColor: theme.accent },
+                  ],
                 ]}
                 onPress={handleSend}
                 activeOpacity={0.8}
-                disabled={!inputText.trim()}
+                disabled={
+                  (!inputText.trim() && selectedImages.length === 0) || uploadingImage
+                }
               >
-                <Ionicons
-                  name="send"
-                  size={20}
-                  color={inputText.trim() ? '#000' : theme.mutedText}
-                />
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color="#000" />
+                ) : (
+                  <Ionicons
+                    name="send"
+                    size={20}
+                    color={inputText.trim() || selectedImages.length > 0 ? '#000' : theme.mutedText}
+                  />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -243,6 +518,32 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupAvatarSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  groupAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  groupAvatarInitial: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  headerTextContent: {
+    flex: 1,
   },
   groupName: {
     fontSize: 16,
@@ -251,6 +552,23 @@ const styles = StyleSheet.create({
   memberCount: {
     fontSize: 12,
     marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  leaderboardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  leaderboardButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   infoButton: {
     padding: 4,
@@ -297,6 +615,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    overflow: 'hidden',
   },
   bubbleMine: {
     // backgroundColor set inline with theme.accent
@@ -304,9 +623,24 @@ const styles = StyleSheet.create({
   bubbleOther: {
     // backgroundColor set inline with theme.card
   },
+  imageOnlyBubble: {
+    padding: 0,
+  },
+  messageImage: {
+    width: 250,
+    height: 250,
+    borderRadius: 12,
+    marginBottom: 0,
+  },
+  messageImageWithText: {
+    marginBottom: 8,
+  },
   messageText: {
     fontSize: 15,
     lineHeight: 20,
+  },
+  messageTextWithImage: {
+    marginTop: 0,
   },
   textMine: {
     color: '#000',
@@ -316,6 +650,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 4,
     marginLeft: 4,
+  },
+  imagePreviewContainer: {
+    borderTopWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  imagePreviewList: {
+    gap: 8,
+  },
+  imagePreviewWrapper: {
+    position: 'relative',
+    marginRight: 8,
+  },
+  imagePreview: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
   },
   inputContainer: {
     flexDirection: 'row',
