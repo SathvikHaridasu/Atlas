@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import SaveVideoButton from '../components/SaveVideoButton';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -466,7 +467,7 @@ export default function CameraScreen() {
           </Text>
         </View>
 
-        {/* Bottom Row: Gallery Thumbnail */}
+        {/* Bottom Row: Gallery Thumbnail and Save Button */}
         <View style={styles.bottomRow}>
           {/* Gallery Thumbnail */}
           <TouchableOpacity
@@ -483,6 +484,13 @@ export default function CameraScreen() {
               </View>
             )}
           </TouchableOpacity>
+
+          {/* Save Video Button - shown when video is recorded */}
+          {lastVideoUri && (
+            <View style={styles.saveButtonContainer}>
+              <SaveVideoButton uri={lastVideoUri} />
+            </View>
+          )}
         </View>
       </SafeAreaView>
       </View>
@@ -705,6 +713,13 @@ const styles = StyleSheet.create({
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  saveButtonContainer: {
+    flex: 1,
+    marginLeft: 12,
+    alignItems: 'flex-end',
   },
   galleryThumbnail: {
     width: 50,
