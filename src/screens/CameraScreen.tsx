@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SaveVideoButton from '../components/SaveVideoButton';
+import VideoUploadModal from '../components/VideoUploadModal';
 import { useFeed } from '../contexts/FeedContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { useSaveVideo } from '../hooks/useSaveVideo';
@@ -399,44 +400,20 @@ export default function CameraScreen() {
     console.log('Add sound');
   };
 
-  const handlePostToFeed = () => {
-    if (!recordedVideoUri) {
-      Alert.alert('Error', 'No video to post');
-      setShowPostModal(false);
-      return;
-    }
-
-    try {
-      // Create new feed post
-      const newPost: FeedPost = {
-        id: `post_${Date.now()}`,
-        type: 'video',
-        videoUri: recordedVideoUri,
-        createdAt: new Date(),
-        durationSeconds: recordedDuration,
-      };
-
-      // Add to feed
-      addPost(newPost);
-
-      // Close modal
-      setShowPostModal(false);
-      setRecordedVideoUri(null);
-      setRecordedDuration(0);
-
-      // Navigate to Feed screen
-      navigation.navigate('Feed' as never);
-    } catch (error) {
-      console.error('Error posting to feed:', error);
-      Alert.alert('Error', 'Failed to post to feed. Please try again.');
-      setShowPostModal(false);
-    }
+  const handleUploadComplete = () => {
+    // Reset state after successful upload
+    setRecordedVideoUri(null);
+    setRecordedDuration(0);
+    setLastVideoUri(null);
+    // Optionally navigate to video catalog or stay on camera
+    // navigation.navigate('VideoCatalog' as never);
   };
 
   const handleDiscard = () => {
-    setShowPostModal(false);
+    // Reset state when discarding
     setRecordedVideoUri(null);
     setRecordedDuration(0);
+    setLastVideoUri(null);
     // Stay on camera screen, ready to record again
   };
 

@@ -21,6 +21,7 @@ import CreateSessionScreen from '../screens/CreateSessionScreen';
 import DareFeedScreen from '../screens/DareFeedScreen';
 import FeedScreen from '../screens/FeedScreen';
 import HomeScreen from '../screens/HomeScreen';
+import VideoCatalogScreen from '../screens/VideoCatalogScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
 import RunScreen from '../screens/RunScreen';
@@ -187,6 +188,16 @@ export default function RootNavigator() {
             options={{
               headerShown: true,
               title: 'Feed',
+              headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
+              headerTintColor: isDark ? '#F9FAFB' : '#111111',
+            }}
+          />
+          <Stack.Screen
+            name="VideoCatalog"
+            component={VideoCatalogScreen}
+            options={{
+              headerShown: true,
+              title: 'Video Catalog',
               headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
               headerTintColor: isDark ? '#F9FAFB' : '#111111',
             }}

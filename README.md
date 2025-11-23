@@ -23,6 +23,23 @@ In the output, you'll find options to open the app in a
 - [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
 - [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
+## Important: Testing Video Playback
+
+**Expo Go cannot provide full media library access.** For proper video playback testing, you must use one of the following methods:
+
+### Development Build (Recommended)
+```bash
+npx expo run:android
+npx expo run:ios
+```
+
+### EAS Build
+```bash
+eas build --profile development
+```
+
+**Note:** Video playback features (recording, uploading, viewing) require native permissions that are not available in Expo Go. Always test video functionality using a development build or EAS build.
+
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
 ## Get a fresh project
