@@ -38,7 +38,6 @@ export type RootTabParamList = {
   Home: undefined;
   Run: undefined;
   Chats: undefined;
-  Settings: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -58,8 +57,6 @@ function MainTabs() {
             iconName = focused ? 'walk' : 'walk-outline';
           } else if (route.name === 'Chats') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-          } else if (route.name === 'Settings') {
-            iconName = focused ? 'settings' : 'settings-outline';
           } else {
             iconName = 'help-outline';
           }
@@ -94,14 +91,6 @@ function MainTabs() {
         component={SessionsHomeScreen}
         options={{
           title: 'Chats',
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsNavigator}
-        options={{
-          title: 'Settings',
-          headerShown: false,
         }}
       />
     </Tab.Navigator>
