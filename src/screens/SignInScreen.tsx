@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -139,16 +140,25 @@ export default function SignInScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <ImageBackground
+        source={{
+          uri: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200&q=80&auto=format&fit=crop',
+        }}
+        style={styles.backgroundImage}
+        imageStyle={styles.backgroundImageStyle}
+        resizeMode="cover"
       >
-        <ScrollView
+        <View style={styles.overlay} />
+        <KeyboardAvoidingView
           style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           {/* Logo + title */}
           <View style={styles.header}>
             <View style={styles.logoCircle}>
@@ -281,6 +291,7 @@ export default function SignInScreen({ navigation }: any) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      </ImageBackground>
     </SafeAreaView>
   );
 }
@@ -289,6 +300,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  backgroundImageStyle: {
+    opacity: 0.3,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(30, 30, 40, 0.88)',
   },
   flex: {
     flex: 1,
