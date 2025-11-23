@@ -34,6 +34,25 @@ export default function GoalCard({ goal }: GoalCardProps) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const formatTimeProgress = (currentMinutes: number, targetMinutes: number): string => {
+    const formatTime = (minutes: number): string => {
+      const h = Math.floor(minutes / 60);
+      const m = Math.floor(minutes % 60);
+      if (h > 0) {
+        return `${h}h ${m}m`;
+      }
+      return `${m}m`;
+    };
+    return `${formatTime(currentMinutes)} / ${formatTime(targetMinutes)}`;
+  };
+
+  const getProgressText = (): string => {
+    if (goal.type === 'time') {
+      return formatTimeProgress(goal.currentValue, goal.targetValue);
+    }
+    return formatGoalProgress(goal.currentValue, goal.targetValue, goal.unitLabel);
+  };
+
   const endDate = new Date(goal.startDate);
   endDate.setDate(endDate.getDate() + goal.durationWeeks * 7);
 
@@ -50,7 +69,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            {formatGoalProgress(goal.currentValue, goal.targetValue, goal.unitLabel)}
+            {getProgressText()}
           </Text>
         </View>
       </View>
