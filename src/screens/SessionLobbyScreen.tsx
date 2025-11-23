@@ -36,11 +36,14 @@ import { uploadImageToStorage } from '../../lib/storageService';
 import { getGroupImageUrl } from '../../lib/storageService';
 import { ChatMessageBubble } from '../components/ChatMessageBubble';
 import { SessionSettingsScreen } from '../screens/SessionSettingsScreen';
+import { DarePromptModal } from '../components/DarePromptModal';
+import { supabase } from '../../lib/supabaseClient';
 
 interface Props {
   route?: {
     params: {
       sessionId: string;
+      shouldPromptForDare?: boolean;
     };
   };
   navigation?: any;
@@ -50,7 +53,13 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
   const { user } = useAuth();
   const { theme } = useAppTheme();
   const sessionId = route?.params?.sessionId;
+  const shouldPromptForDare = route?.params?.shouldPromptForDare ?? false;
   const messagesListRef = useRef<FlatList>(null);
+  
+  // Dare prompt state
+  const [showDareModal, setShowDareModal] = React.useState(shouldPromptForDare);
+  const [dareText, setDareText] = React.useState('');
+  const [savingDare, setSavingDare] = React.useState(false);
 
   // Log sessionId to verify it's being passed correctly
   console.log("[ChatScreen] sessionId:", sessionId);
@@ -247,6 +256,41 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
     } finally {
       setSendingMessage(false);
       setUploadingImage(false);
+    }
+  };
+
+  // Handle dare submission
+  const handleSubmitDare = async () => {
+    if (!dareText.trim() || !user || !sessionId) {
+      return;
+    }
+
+    try {
+      setSavingDare(true);
+
+      // 1) Update session_members with dare_text + dare_submitted
+      const { error: memberError } = await supabase
+        .from('session_members')
+        .update({
+          dare_text: dareText.trim(),
+          dare_submitted: true,
+        })
+        .eq('session_id', sessionId)
+        .eq('user_id', user.id);
+
+      if (memberError) {
+        throw memberError;
+      }
+
+      // 2) Optionally insert a first chat message that represents the dare
+      await sendMessage(sessionId, user.id, `🎯 Dare: ${dareText.trim()}`);
+
+      setShowDareModal(false);
+    } catch (err) {
+      console.error('Failed to submit dare', err);
+      Alert.alert('Error', 'Failed to save dare. Please try again.');
+    } finally {
+      setSavingDare(false);
     }
   };
 
@@ -501,6 +545,16 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+
+      {/* Dare Prompt Modal */}
+      <DarePromptModal
+        visible={showDareModal}
+        value={dareText}
+        onChangeText={setDareText}
+        onSkip={() => setShowDareModal(false)}
+        onSubmit={handleSubmitDare}
+        loading={savingDare}
+      />
     </SafeAreaView>
   );
 }

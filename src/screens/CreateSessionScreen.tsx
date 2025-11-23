@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { createSession } from '../../lib/sessionService';
+import { createSession, getSessionMembership } from '../../lib/sessionService';
 
 export default function CreateSessionScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -32,7 +32,15 @@ export default function CreateSessionScreen({ navigation }: any) {
     setLoading(true);
     try {
       const session = await createSession(name.trim());
-      navigation.navigate('SessionLobby', { sessionId: session.id });
+      
+      // Check if user has already submitted a dare (should be false for new session)
+      const membership = await getSessionMembership(session.id, user.id);
+      const shouldPromptForDare = !membership?.dare_submitted;
+      
+      navigation.navigate('SessionLobby', { 
+        sessionId: session.id,
+        shouldPromptForDare,
+      });
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create session');
     } finally {

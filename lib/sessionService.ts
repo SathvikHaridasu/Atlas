@@ -17,6 +17,8 @@ export interface SessionMember {
   session_id: string;
   user_id: string;
   points: number;
+  dare_text?: string | null;
+  dare_submitted?: boolean;
 }
 
 export interface SessionDare {
@@ -225,6 +227,31 @@ export async function getSessionMembers(sessionId: string): Promise<SessionMembe
   }
 
   return data || [];
+}
+
+/**
+ * Get a specific user's membership for a session
+ * @param sessionId - The session ID
+ * @param userId - The user ID
+ * @returns The membership record or null if not found
+ */
+export async function getSessionMembership(
+  sessionId: string,
+  userId: string
+): Promise<SessionMember | null> {
+  const { data, error } = await supabase
+    .from("session_members")
+    .select("*")
+    .eq("session_id", sessionId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    return null;
+  }
+
+  return data;
 }
 
 export async function getSessionDares(sessionId: string): Promise<SessionDare[]> {

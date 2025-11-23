@@ -82,7 +82,7 @@ export type RootStackParamList = {
   PostDare: { videoUri: string; sessionId: string; activeMissionInstanceId?: string | null }; // Required params for posting dare video
   CreateSession: undefined;
   JoinSession: undefined;
-  SessionLobby: { sessionId: string; sessionName?: string };
+  SessionLobby: { sessionId: string; sessionName?: string; shouldPromptForDare?: boolean };
   SessionLeaderboard: { sessionId: string; sessionName?: string };
   SessionSettings: {
     sessionId: string;

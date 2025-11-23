@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { joinSessionWithCode } from '../../lib/sessionService';
+import { joinSessionWithCode, getSessionMembership } from '../../lib/sessionService';
 
 export default function JoinSessionScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -36,7 +36,15 @@ export default function JoinSessionScreen({ navigation }: any) {
     setLoading(true);
     try {
       const session = await joinSessionWithCode(user.id, normalizedCode);
-      navigation.navigate('SessionLobby', { sessionId: session.id });
+      
+      // Check if user has already submitted a dare
+      const membership = await getSessionMembership(session.id, user.id);
+      const shouldPromptForDare = !membership?.dare_submitted;
+      
+      navigation.navigate('SessionLobby', { 
+        sessionId: session.id,
+        shouldPromptForDare,
+      });
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to join session. Please check the code and try again.');
     } finally {
