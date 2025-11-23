@@ -6,6 +6,7 @@ import MapView, { Polygon, Region } from "react-native-maps";
 import { SAMPLE_ZONES } from "../lib/sampleZones";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { useMapState } from "../contexts/MapStateContext";
 
 const initialRegion: Region = {
   latitude: 43.468,
@@ -21,12 +22,14 @@ type MapMode = "global" | "mine";
 const MasterMapScreen: React.FC = () => {
   const navigation = useNavigation();
   const { session } = useAuth();
+  const { masterRegion, setMasterRegion } = useMapState();
 
-  const [region, setRegion] = useState<Region>(initialRegion);
+  const [region, setRegion] = useState<Region>(masterRegion ?? initialRegion);
   const [mapMode, setMapMode] = useState<MapMode>("global");
 
   const handleRegionChangeComplete = (reg: Region) => {
     setRegion(reg);
+    setMasterRegion(reg);
   };
 
   return (
@@ -37,21 +40,30 @@ const MasterMapScreen: React.FC = () => {
         initialRegion={initialRegion}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
-        {SAMPLE_ZONES.map((zone) => {
+        {SAMPLE_ZONES.filter((zone) => {
+          if (mapMode === "global") {
+            // global = show LHSS + WCI but not the personal zones
+            return zone.group === "LHSS" || zone.group === "WCI";
+          }
+          // "mine" mode = only ME zones for now
+          return zone.group === "ME";
+        }).map((zone) => {
           const isLHSS = zone.group === "LHSS";
           const isWCI = zone.group === "WCI";
+          const isME = zone.group === "ME";
 
           let strokeColor = "rgba(255,255,255,1)";
           let fillColor = "rgba(255,255,255,0.16)";
 
           if (isLHSS) {
-            strokeColor = "rgba(0,196,255,1)"; // LHSS cyan
+            strokeColor = "rgba(0,196,255,1)";
             fillColor = "rgba(0,196,255,0.25)";
-          }
-
-          if (isWCI) {
-            strokeColor = "rgba(255,122,0,1)"; // WCI orange
+          } else if (isWCI) {
+            strokeColor = "rgba(255,122,0,1)";
             fillColor = "rgba(255,122,0,0.25)";
+          } else if (isME) {
+            strokeColor = "rgba(3,202,89,1)"; // bright green for "my territory"
+            fillColor = "rgba(3,202,89,0.25)";
           }
 
           return (
@@ -109,12 +121,17 @@ const MasterMapScreen: React.FC = () => {
       <View style={styles.legendContainer}>
         <View style={styles.legendRow}>
           <View style={[styles.legendSwatch, { backgroundColor: "#00C4FF" }]} />
-          <Text style={styles.legendText}>LHSS Territory</Text>
+          <Text style={styles.legendText}>LHSS</Text>
         </View>
 
         <View style={styles.legendRow}>
           <View style={[styles.legendSwatch, { backgroundColor: "#FF7A00" }]} />
-          <Text style={styles.legendText}>WCI Territory</Text>
+          <Text style={styles.legendText}>WCI</Text>
+        </View>
+
+        <View style={styles.legendRow}>
+          <View style={[styles.legendSwatch, { backgroundColor: "#03CA59" }]} />
+          <Text style={styles.legendText}>Your territory</Text>
         </View>
       </View>
 

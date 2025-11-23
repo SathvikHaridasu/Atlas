@@ -1,6 +1,6 @@
 import type { LatLng } from "./territoryHelper";
 
-export type GroupId = "LHSS" | "WCI";
+export type GroupId = "LHSS" | "WCI" | "ME";
 
 export interface GroupZone {
   id: string;
@@ -64,6 +64,28 @@ export const SAMPLE_ZONES: GroupZone[] = [
       { latitude: 43.452, longitude: -80.520 },
       { latitude: 43.445, longitude: -80.525 },
       { latitude: 43.445, longitude: -80.540 },
+    ],
+  },
+  {
+    id: "me-home-zone",
+    group: "ME",
+    name: "My Home Loop",
+    coordinates: [
+      { latitude: 43.467, longitude: -80.535 },
+      { latitude: 43.469, longitude: -80.528 },
+      { latitude: 43.463, longitude: -80.525 },
+      { latitude: 43.460, longitude: -80.532 },
+    ],
+  },
+  {
+    id: "me-school-zone",
+    group: "ME",
+    name: "My School Loop",
+    coordinates: [
+      { latitude: 43.472, longitude: -80.545 },
+      { latitude: 43.474, longitude: -80.538 },
+      { latitude: 43.469, longitude: -80.534 },
+      { latitude: 43.466, longitude: -80.540 },
     ],
   },
 ];

@@ -1,11 +1,12 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
-import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Circle, LatLng, MapPressEvent, Marker, Polygon, Polyline, Region } from "react-native-maps";
 import { useAuth } from "../../contexts/AuthContext";
+import { useMapState } from "../contexts/MapStateContext";
 import { useRunStats } from "../contexts/RunStatsContext";
 import { useAppTheme } from "../contexts/ThemeContext";
 import {
@@ -16,14 +17,22 @@ import {
   type TerritoryTile,
 } from "../lib/territoryHelper";
 
-const METERS_PER_POINT = 10; // 1 point for every 10 meters
 const POINTS_KEY = "userPoints";
+
+type RunStatus = "idle" | "running" | "paused";
 
 const RunScreen: React.FC = () => {
   const { updateStats } = useRunStats();
   const { theme } = useAppTheme();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
+  const { masterRegion } = useMapState();
   const navigation = useNavigation();
+
+  // Get avatar URL from profile or use placeholder
+  const avatarUrl =
+    profile?.avatar_url ??
+    (session?.user?.user_metadata as any)?.avatar_url ??
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(session?.user?.email?.split('@')[0] || 'Runner')}&background=03CA59&color=ffffff`;
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [region, setRegion] = useState<Region | undefined>(undefined);
   const [position, setPosition] = useState<{
@@ -34,7 +43,8 @@ const RunScreen: React.FC = () => {
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
 
   // Run tracking state
-  const [isRunning, setIsRunning] = useState(false);
+  const [runStatus, setRunStatus] = useState<RunStatus>("idle");
+  const isRunning = runStatus === "running";
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [totalDistanceMeters, setTotalDistanceMeters] = useState(0);
   const [averagePace, setAveragePace] = useState<string>("-");
@@ -46,8 +56,7 @@ const RunScreen: React.FC = () => {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const previousPositionRef = useRef<{ latitude: number; longitude: number } | null>(null);
-  const leftoverMetersRef = useRef(0);
-  const elapsedSecondsRef = useRef(0);
+  const pointsDistanceRef = useRef(0); // counts distance since last point was awarded
 
   // Helper functions
   const formatTime = (seconds: number): string => {
@@ -83,22 +92,6 @@ const RunScreen: React.FC = () => {
     return R * c;
   };
 
-  const awardPointsForDistance = (segmentMeters: number) => {
-    leftoverMetersRef.current += segmentMeters;
-
-    const earnedPoints = Math.floor(leftoverMetersRef.current / METERS_PER_POINT);
-    if (earnedPoints <= 0) return;
-
-    leftoverMetersRef.current = leftoverMetersRef.current % METERS_PER_POINT;
-
-    setPoints((prev) => {
-      const updated = prev + earnedPoints;
-      AsyncStorage.setItem(POINTS_KEY, String(updated)).catch((e) =>
-        console.warn("Failed to save points", e)
-      );
-      return updated;
-    });
-  };
 
   // Load saved points on mount
   useEffect(() => {
@@ -119,20 +112,17 @@ const RunScreen: React.FC = () => {
 
   // Timer logic
   useEffect(() => {
-    if (isRunning) {
-      // Start timer
-      timerRef.current = setInterval(() => {
-        setElapsedSeconds((prev) => {
-          const newValue = prev + 1;
-          elapsedSecondsRef.current = newValue;
-          return newValue;
-        });
-      }, 1000);
-    } else if (timerRef.current) {
-      // Pause timer
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    if (runStatus !== "running") {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
     }
+
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
 
     return () => {
       if (timerRef.current) {
@@ -140,7 +130,25 @@ const RunScreen: React.FC = () => {
         timerRef.current = null;
       }
     };
-  }, [isRunning]);
+  }, [runStatus]);
+
+  // Pace calculation effect
+  useEffect(() => {
+    const distanceKm = totalDistanceMeters / 1000;
+
+    if (distanceKm <= 0 || elapsedSeconds <= 0) {
+      setAveragePace("-");
+      return;
+    }
+
+    const secPerKm = elapsedSeconds / distanceKm;
+    const paceMin = Math.floor(secPerKm / 60);
+    const paceSec = Math.round(secPerKm % 60);
+
+    setAveragePace(
+      `${String(paceMin).padStart(2, "0")}:${String(paceSec).padStart(2, "0")}`
+    );
+  }, [totalDistanceMeters, elapsedSeconds]);
 
   useEffect(() => {
     const setupLocation = async () => {
@@ -158,12 +166,14 @@ const RunScreen: React.FC = () => {
       const current = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = current.coords;
       setPosition({ latitude, longitude });
-      setRegion({
-        latitude,
-        longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
+      setRegion((prev) =>
+        prev ?? {
+          latitude,
+          longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }
+      );
 
       // Start watching position
       locationSubscription.current = await Location.watchPositionAsync(
@@ -189,30 +199,31 @@ const RunScreen: React.FC = () => {
             });
           }
 
-          // Compute distance, pace, and points if running
-          if (previousPositionRef.current && isRunning) {
+          // Compute distance and points if running
+          if (previousPositionRef.current && runStatus === "running") {
             const prev = previousPositionRef.current;
             const segmentDistance = getDistanceMeters(prev, currentPos);
 
             if (segmentDistance > 0) {
               setTotalDistanceMeters((prevTotal) => {
                 const newTotal = prevTotal + segmentDistance;
-
-                // Update average pace if we have some distance and time
-                const distanceKm = newTotal / 1000;
-                const currentElapsed = elapsedSecondsRef.current;
-                if (distanceKm > 0 && currentElapsed > 0) {
-                  const secPerKm = currentElapsed / distanceKm;
-                  const paceMin = Math.floor(secPerKm / 60);
-                  const paceSec = Math.round(secPerKm % 60);
-                  setAveragePace(`${String(paceMin).padStart(2, "0")}:${String(paceSec).padStart(2, "0")}`);
-                }
-
-                // Award points for this segment
-                awardPointsForDistance(segmentDistance);
-
                 return newTotal;
               });
+
+              // Accumulate for points
+              pointsDistanceRef.current += segmentDistance;
+
+              // Award 1 point per 100 meters
+              while (pointsDistanceRef.current >= 100) {
+                pointsDistanceRef.current -= 100;
+                setPoints((prev) => {
+                  const updated = prev + 1;
+                  AsyncStorage.setItem(POINTS_KEY, String(updated)).catch((e) =>
+                    console.warn("Failed to save points", e)
+                  );
+                  return updated;
+                });
+              }
             }
           }
 
@@ -246,7 +257,7 @@ const RunScreen: React.FC = () => {
       }
       previousPositionRef.current = null;
     };
-  }, [isRunning]);
+  }, [runStatus]);
 
   // Fetch territory tiles whenever the map region changes
   useEffect(() => {
@@ -274,6 +285,15 @@ const RunScreen: React.FC = () => {
     });
   }, [points, totalDistanceMeters, elapsedSeconds, updateStats]);
 
+  // Animate to masterRegion when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (masterRegion && mapRef.current) {
+        mapRef.current.animateToRegion(masterRegion, 500);
+      }
+    }, [masterRegion])
+  );
+
   if (hasPermission === null || !region) {
     return (
       <View style={styles.center}>
@@ -282,36 +302,38 @@ const RunScreen: React.FC = () => {
     );
   }
 
-  const handleToggleRun = () => {
-    setIsRunning((prev) => {
-      const wasRunning = prev;
-      const next = !prev;
-
-      // If we were running and now we stop -> capture territory for this run
-      if (wasRunning && !next) {
-        const userId = session?.user?.id;
-        if (userId && pathCoords.length > 1 && totalDistanceMeters > 0) {
-          // Cast pathCoords to TerritoryLatLng[] if types differ
-          captureTerritoryForRun(
-            userId,
-            pathCoords as TerritoryLatLng[],
-            totalDistanceMeters
-          );
+  const handleStartPause = () => {
+    setRunStatus((prev) => {
+      if (prev === "idle" || prev === "paused") {
+        // starting or resuming
+        if (prev === "idle") {
+          // Starting a new run – clear previous path
+          setPathCoords([]);
+          previousPositionRef.current = null;
         }
+        return "running";
       }
-
-      if (next) {
-        // Starting a new run – clear previous path
-        setPathCoords([]);
-        previousPositionRef.current = null;
-        // Optional: reset stats for a fresh run
-        // setElapsedSeconds(0);
-        // setTotalDistanceMeters(0);
-        // setAveragePace("-");
-      }
-
-      return next;
+      // if running -> pause
+      return "paused";
     });
+  };
+
+  const handleEndRun = () => {
+    if (runStatus === "idle") return;
+
+    const userId = session?.user?.id;
+    if (userId && pathCoords.length > 1 && totalDistanceMeters > 0) {
+      captureTerritoryForRun(userId, pathCoords as TerritoryLatLng[], totalDistanceMeters);
+    }
+
+    // Reset stats for a fresh run
+    setRunStatus("idle");
+    setElapsedSeconds(0);
+    setTotalDistanceMeters(0);
+    setAveragePace("-");
+    setPathCoords([]);
+    previousPositionRef.current = null;
+    pointsDistanceRef.current = 0;
   };
 
   const handleToggleRoutePlanning = () => {
@@ -355,13 +377,25 @@ const RunScreen: React.FC = () => {
       >
         {position && (
           <>
-            <Marker coordinate={position} />
+            {/* Custom profile marker */}
+            <Marker coordinate={position} tracksViewChanges={false}>
+              <View style={styles.avatarMarkerOuter}>
+                <View style={styles.avatarMarkerInner}>
+                  <Image
+                    source={{ uri: avatarUrl }}
+                    style={styles.avatarImage}
+                  />
+                </View>
+                <View style={styles.avatarMarkerArrow} />
+              </View>
+            </Marker>
+            {/* Growing territory circle */}
             <Circle
               center={position}
-              radius={20}
-              strokeWidth={1}
-              strokeColor="rgba(3, 202, 89, 0.8)"
-              fillColor="rgba(3, 202, 89, 0.2)"
+              radius={50 + totalDistanceMeters}
+              strokeWidth={2}
+              strokeColor="rgba(3,202,89,0.9)"
+              fillColor="rgba(3,202,89,0.15)"
             />
           </>
         )}
@@ -462,44 +496,27 @@ const RunScreen: React.FC = () => {
         <View style={styles.controlsRow}>
           {/* Run button (left) */}
           <View style={styles.smallButtonContainer}>
-            <TouchableOpacity style={[styles.smallCircleButton, { backgroundColor: theme.mode === 'dark' ? '#181818' : '#E5E5E5', borderColor: theme.border }]} onPress={handleToggleRun} activeOpacity={0.8}>
+            <TouchableOpacity style={[styles.smallCircleButton, { backgroundColor: theme.mode === 'dark' ? '#181818' : '#E5E5E5', borderColor: theme.border }]} onPress={handleToggleRoutePlanning} activeOpacity={0.8}>
               <Ionicons name="walk-outline" size={24} color={theme.text} />
             </TouchableOpacity>
-            <Text style={[styles.controlLabel, { color: theme.mutedText }]}>Run</Text>
+            <Text style={[styles.controlLabel, { color: theme.mutedText }]}>Add Route</Text>
           </View>
 
-          {/* Play button (center) */}
-          <TouchableOpacity style={[styles.bigCircleButton, { backgroundColor: theme.accent }]} onPress={handleToggleRun} activeOpacity={0.9}>
-            {isRunning ? (
+          {/* Play/Pause button (center) */}
+          <TouchableOpacity style={[styles.bigCircleButton, { backgroundColor: theme.accent }]} onPress={handleStartPause} activeOpacity={0.9}>
+            {runStatus === "running" ? (
               <MaterialIcons name="pause" size={32} color="#000000" />
             ) : (
               <MaterialIcons name="play-arrow" size={32} color="#000000" />
             )}
           </TouchableOpacity>
 
-          {/* Add Route button (right) */}
+          {/* End button (right) */}
           <View style={styles.smallButtonContainer}>
-            <TouchableOpacity
-              style={[
-                styles.smallCircleButton,
-                { 
-                  backgroundColor: theme.mode === 'dark' ? '#181818' : '#E5E5E5', 
-                  borderColor: theme.border 
-                },
-                isPlanningRoute && [
-                  styles.smallCircleButtonActive, 
-                  { 
-                    borderColor: theme.accent, 
-                    backgroundColor: `rgba(3, 202, 89, ${theme.mode === 'dark' ? '0.2' : '0.15'})` 
-                  }
-                ],
-              ]}
-              onPress={handleToggleRoutePlanning}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons name="alt-route" size={24} color={isPlanningRoute ? theme.accent : theme.text} />
+            <TouchableOpacity style={styles.smallCircleButtonDanger} onPress={handleEndRun} activeOpacity={0.8}>
+              <MaterialIcons name="stop" size={22} color="#ffffff" />
             </TouchableOpacity>
-            <Text style={[styles.controlLabel, { color: theme.mutedText }]}>Add Route</Text>
+            <Text style={[styles.controlLabel, { color: theme.mutedText }]}>End</Text>
           </View>
         </View>
         </View>
@@ -634,6 +651,14 @@ const styles = StyleSheet.create({
   smallCircleButtonActive: {
     borderWidth: 2,
   },
+  smallCircleButtonDanger: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#c0392b",
+  },
   bigCircleButton: {
     width: 72,
     height: 72,
@@ -662,6 +687,36 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.85)",
     zIndex: 10,
+  },
+  avatarMarkerOuter: {
+    alignItems: "center",
+  },
+  avatarMarkerInner: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#000000",
+    padding: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#03CA59",
+  },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  avatarMarkerArrow: {
+    width: 0,
+    height: 0,
+    marginTop: 2,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 8,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "#03CA59",
   },
 });
 
