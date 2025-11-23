@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { Feather, FontAwesome, Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Image,
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
@@ -14,8 +16,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome, Feather, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
+
+const AtlasLogo = require('../../assets/images/atlas-logo.png');
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -161,9 +164,7 @@ export default function SignInScreen({ navigation }: any) {
           >
           {/* Logo + title */}
           <View style={styles.header}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoInitial}>AR</Text>
-            </View>
+            <Image source={AtlasLogo} style={styles.logo} />
             <Text style={styles.appName}>Atlas Run</Text>
             <Text style={styles.subtitle}>Run farther. Conquer every dare.</Text>
           </View>
@@ -332,19 +333,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#03CA59',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  logoInitial: {
-    color: '#000000',
-    fontSize: 28,
-    fontWeight: '800',
+  logo: {
+    width: 140,
+    height: 140,
+    resizeMode: 'contain',
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   appName: {
     color: '#FFFFFF',
