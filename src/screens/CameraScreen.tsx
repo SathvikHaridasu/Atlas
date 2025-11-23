@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import HeaderHomeButton from '../components/HeaderHomeButton';
 import SaveVideoButton from '../components/SaveVideoButton';
 import VideoUploadModal from '../components/VideoUploadModal';
 import { useFeed } from '../contexts/FeedContext';
@@ -469,10 +470,15 @@ export default function CameraScreen() {
         {/* Top Bar */}
         <View style={styles.topBar}>
           <View style={styles.topBarContent}>
-            {/* Left: Close Button */}
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose} activeOpacity={0.8}>
-              <Ionicons name="close" size={28} color="#F9FAFB" />
-            </TouchableOpacity>
+            {/* Left: Close Button and Home Button */}
+            <View style={styles.leftButtons}>
+              <TouchableOpacity style={styles.closeButton} onPress={handleClose} activeOpacity={0.8}>
+                <Ionicons name="close" size={28} color="#F9FAFB" />
+              </TouchableOpacity>
+              <View style={styles.homeButtonWrapper}>
+                <HeaderHomeButton />
+              </View>
+            </View>
 
             {/* Center: Add Sound */}
             <TouchableOpacity
@@ -812,6 +818,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  leftButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  homeButtonWrapper: {
+    // Wrapper for HeaderHomeButton to ensure proper styling
   },
   closeButton: {
     width: 40,
