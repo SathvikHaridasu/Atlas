@@ -1,8 +1,8 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -105,11 +105,37 @@ export default function CameraScreen() {
     }
   };
 
-  const handleClose = () => {
-    if (isRecording) {
-      handleStopRecording();
+  const stopRecordingWithoutNavigation = async () => {
+    try {
+      setIsRecording(false);
+      
+      // Stop the recording timer
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setElapsedMs(0);
+      progressAnimRef.current.setValue(0);
+      
+      // Stub: In a real implementation, you would get the video URI from the camera
+      // Example: const { uri } = await cameraRef.current.stopRecording();
+      // For now, we'll simulate getting a temp URI
+      const tempUri = `file://temp/video_${Date.now()}.mp4`;
+      
+      // Persist the recording (but don't navigate)
+      const finalUri = await persistRecording(tempUri);
+      setLastVideoUri(finalUri);
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      setIsRecording(false);
     }
-    navigation.navigate('Home' as never);
+  };
+
+  const handleClose = async () => {
+    if (isRecording) {
+      await stopRecordingWithoutNavigation();
+    }
+    navigation.navigate('MainTabs', { screen: 'Home' });
   };
 
   const handlePreviewTap = () => {
