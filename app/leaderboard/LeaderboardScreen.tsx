@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppTheme } from '../../src/contexts/ThemeContext';
 import {
   getSession,
   getSessionMembers,
@@ -21,6 +20,7 @@ import {
   SessionMember,
 } from '../../lib/sessionService';
 import { supabase } from '../../lib/supabaseClient';
+import { useAppTheme } from '../../src/contexts/ThemeContext';
 
 interface LeaderboardScreenProps {
   navigation?: any;
