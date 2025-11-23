@@ -58,7 +58,7 @@ export default function SignUpScreen({ navigation }: any) {
               <Text style={styles.logoInitial}>AR</Text>
             </View>
             <Text style={styles.appName}>Atlas Run</Text>
-            <Text style={styles.subtitle}>Create an account to join sessions and dares.</Text>
+            <Text style={styles.subtitle}>Join the crew. Run, compete, conquer.</Text>
           </View>
 
           {/* Form */}
@@ -144,9 +144,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 32,
+    paddingTop: 40,
     paddingBottom: 24,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   header: {
     alignItems: 'center',
@@ -168,13 +168,13 @@ const styles = StyleSheet.create({
   },
   appName: {
     color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
   },
   subtitle: {
-    marginTop: 4,
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
+    marginTop: 6,
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 14,
     textAlign: 'center',
   },
   form: {
