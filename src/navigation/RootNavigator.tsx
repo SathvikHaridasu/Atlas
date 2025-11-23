@@ -14,8 +14,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 
 import ChallengesScreen from '../screens/ChallengesScreen';
-import ChatScreen from '../screens/ChatScreen';
-import CreateGoalScreen from '../screens/CreateGoalScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
@@ -165,26 +163,6 @@ export default function RootNavigator() {
             name="MasterMap"
             component={MasterMapScreen}
             options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="CreateGoal"
-            component={CreateGoalScreen}
-            options={{
-              headerShown: true,
-              title: 'Create Goal',
-              headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
-              headerTintColor: isDark ? '#F9FAFB' : '#111111',
-            }}
-          />
-          <Stack.Screen
-            name="Chat"
-            component={ChatScreen}
-            options={{
-              headerShown: true,
-              title: 'Chat',
-              headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
-              headerTintColor: isDark ? '#F9FAFB' : '#111111',
-            }}
           />
         </Stack.Navigator>
       ) : (
