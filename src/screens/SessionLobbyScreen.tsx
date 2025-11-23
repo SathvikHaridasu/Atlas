@@ -21,19 +21,17 @@ import { Image } from 'expo-image';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import {
-  getMessages,
   getSession,
   getSessionDares,
   getSessionMembers,
   leaveSession,
   listenToMembers,
-  listenToMessages,
-  Message,
   sendMessage,
   Session,
   SessionDare,
   SessionMember,
 } from '../../lib/sessionService';
+import { useSessionMessages, Message } from '../hooks/useSessionMessages';
 import { uploadImageToStorage } from '../../lib/storageService';
 import { getGroupImageUrl } from '../../lib/storageService';
 import { ChatMessageBubble } from '../components/ChatMessageBubble';
@@ -54,6 +52,9 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
   const sessionId = route?.params?.sessionId;
   const messagesListRef = useRef<FlatList>(null);
 
+  // Log sessionId to verify it's being passed correctly
+  console.log("[ChatScreen] sessionId:", sessionId);
+
   if (!sessionId) {
     return (
       <View style={styles.center}>
@@ -62,16 +63,28 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
     );
   }
 
+  // Use the live messages hook
+  // Make sure we're using the hook's messages state, not a local duplicate
+  const { messages, setMessages, loading: messagesLoading, error: messagesError } = useSessionMessages(sessionId);
+
   const [session, setSession] = useState<Session | null>(null);
   const [members, setMembers] = useState<SessionMember[]>([]);
   const [dares, setDares] = useState<SessionDare[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [chatText, setChatText] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [groupImageUrl, setGroupImageUrl] = useState<string | null>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        messagesListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     loadData();
@@ -88,37 +101,26 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!sessionId) return;
 
-    // Set up realtime subscriptions
+    // Set up realtime subscription for members only (messages handled by hook)
     const unsubscribeMembers = listenToMembers(sessionId, (updatedMembers) => {
       setMembers(updatedMembers);
     });
 
-    const unsubscribeMessages = listenToMessages(sessionId, (updatedMessages) => {
-      setMessages(updatedMessages);
-      // Auto-scroll to bottom when new message arrives
-      setTimeout(() => {
-        messagesListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    });
-
     return () => {
       unsubscribeMembers();
-      unsubscribeMessages();
     };
   }, [sessionId]);
 
   const loadData = async () => {
     try {
-      const [sessionData, membersData, daresData, messagesData] = await Promise.all([
+      const [sessionData, membersData, daresData] = await Promise.all([
         getSession(sessionId),
         getSessionMembers(sessionId),
         getSessionDares(sessionId),
-        getMessages(sessionId),
       ]);
       setSession(sessionData);
       setMembers(membersData);
       setDares(daresData);
-      setMessages(messagesData);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -215,10 +217,24 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
 
     setSendingMessage(true);
 
-    try {
-      // Send text message
-      await sendMessage(sessionId, user.id, chatText.trim());
+    const messageContent = chatText.trim();
 
+    try {
+      // Send message via Supabase
+      const newMessage = await sendMessage(sessionId, user.id, messageContent);
+
+      // Optimistically add to messages state (will be deduped by id in the hook)
+      if (newMessage) {
+        setMessages((prev) => {
+          // Avoid duplicates - Realtime will also send the same message
+          if (prev.find((m) => m.id === newMessage.id)) {
+            return prev;
+          }
+          return [...prev, newMessage];
+        });
+      }
+
+      // Clear input immediately for better UX
       setChatText('');
       
       // Scroll to bottom after sending
@@ -226,7 +242,8 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
         messagesListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error('[handleSendMessage] error', error);
+      Alert.alert('Error', error.message || 'Failed to send message');
     } finally {
       setSendingMessage(false);
       setUploadingImage(false);
@@ -251,10 +268,22 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
     return name.charAt(0).toUpperCase();
   };
 
-  if (loading) {
+  // Show loading state while initial data is loading or messages are loading
+  if (loading || messagesLoading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#03CA59" />
+        <Text style={{ marginTop: 12, color: '#9CA3AF' }}>Loading messages...</Text>
+      </View>
+    );
+  }
+
+  // Show error if messages failed to load
+  if (messagesError) {
+    return (
+      <View style={styles.center}>
+        <Text style={{ color: '#EF4444', marginBottom: 8 }}>Error loading messages</Text>
+        <Text style={{ color: '#9CA3AF', fontSize: 12 }}>{messagesError}</Text>
       </View>
     );
   }

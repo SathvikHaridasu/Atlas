@@ -1,5 +1,6 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +19,7 @@ import SaveVideoButton from '../components/SaveVideoButton';
 import { useFeed } from '../contexts/FeedContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { useSaveVideo } from '../hooks/useSaveVideo';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 import { FeedPost } from '../types/feed';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -26,8 +28,12 @@ type CameraFacing = 'front' | 'back';
 type FlashMode = 'auto' | 'on' | 'off';
 type Duration = 15 | 30 | 60;
 
+type CameraScreenRouteProp = RouteProp<RootStackParamList, 'Camera'>;
+
 export default function CameraScreen() {
   const navigation = useNavigation();
+  const route = useRoute<CameraScreenRouteProp>();
+  const sessionId = route.params?.sessionId;
   const [permission, requestPermission] = useCameraPermissions();
   const { saveVideo } = useSaveVideo();
   const { addPost } = useFeed();
@@ -58,18 +64,18 @@ export default function CameraScreen() {
     // Stop recording if active
     if (isRecording) {
       setIsRecording(false);
-      
+
       // Stop the recording timer
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
         recordingTimerRef.current = null;
       }
-      
+
       // Reset animations
       setElapsedMs(0);
       progressAnimRef.current.setValue(0);
     }
-    
+
     // Clear any timers
     if (recordingTimerRef.current) {
       clearInterval(recordingTimerRef.current);
@@ -268,10 +274,10 @@ export default function CameraScreen() {
     if (isRecording) {
       await stopRecordingWithoutNavigation();
     }
-    
+
     // Cleanup camera resources
     cleanupCamera();
-    
+
     // Navigate back to unmount the screen properly
     navigation.goBack();
   };
@@ -349,9 +355,9 @@ export default function CameraScreen() {
           if (!result || !result.uri) {
             throw new Error('Recording completed but no URI returned');
           }
-          
+
           const { uri } = result;
-          
+
           // Recording completed successfully
           setLastVideoUri(uri);
           setIsRecording(false);
@@ -386,7 +392,7 @@ export default function CameraScreen() {
       setIsRecording(false);
       recordingPromiseRef.current = null;
     }
-  }, [cameraRef, isRecording, duration, saveVideo, navigation]);
+  }, [cameraRef, isRecording, duration, saveVideo, navigation, elapsedMs]);
 
   const handleAddSound = () => {
     // Stub handler
@@ -476,272 +482,293 @@ export default function CameraScreen() {
           />
         </TouchableOpacity>
 
-      {/* Top Gradient Overlay */}
-      <LinearGradient
-        colors={['rgba(0,0,0,0.6)', 'transparent']}
-        style={styles.topGradient}
-        pointerEvents="none"
-      />
+        {/* Top Gradient Overlay */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.6)', 'transparent']}
+          style={styles.topGradient}
+          pointerEvents="none"
+        />
 
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <View style={styles.topBarContent}>
-          {/* Left: Close Button */}
-          <TouchableOpacity style={styles.closeButton} onPress={handleClose} activeOpacity={0.8}>
-            <Ionicons name="close" size={28} color="#F9FAFB" />
-          </TouchableOpacity>
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          <View style={styles.topBarContent}>
+            {/* Left: Close Button */}
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose} activeOpacity={0.8}>
+              <Ionicons name="close" size={28} color="#F9FAFB" />
+            </TouchableOpacity>
 
-          {/* Center: Add Sound */}
-          <TouchableOpacity
-            style={styles.addSoundButton}
-            onPress={handleAddSound}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="musical-notes" size={16} color="#F9FAFB" style={{ marginRight: 6 }} />
-            <Text style={styles.addSoundText}>Add sound</Text>
-          </TouchableOpacity>
-
-          {/* Right: Control Icons */}
-          <View style={styles.controlIcons}>
+            {/* Center: Add Sound */}
             <TouchableOpacity
-              style={[styles.controlIcon, { marginLeft: 16 }]}
-              onPress={handleFlipCamera}
+              style={styles.addSoundButton}
+              onPress={handleAddSound}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name="camera-reverse"
-                size={24}
-                color={cameraFacing === 'front' ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
-              />
+              <Ionicons name="musical-notes" size={16} color="#F9FAFB" style={{ marginRight: 6 }} />
+              <Text style={styles.addSoundText}>Add sound</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.controlIcon}
-              onPress={handleToggleFlash}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={flashIconName}
-                size={24}
-                color={flashMode !== 'off' ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.controlIcon}
-              onPress={handleToggleFilter}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons
-                name="filter"
-                size={24}
-                color={activeFilterId ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.controlIcon}
-              onPress={handleToggleBeauty}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons
-                name="face"
-                size={24}
-                color={beautyEnabled ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
 
-      {/* Recording Indicator */}
-      {isRecording && (
-        <View style={styles.recordingIndicator}>
-          <View style={styles.recordingDot} />
-          <Text style={styles.recordingText}>REC</Text>
-        </View>
-      )}
-
-      {/* Bottom Gradient Overlay */}
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.6)']}
-        style={styles.bottomGradient}
-        pointerEvents="none"
-      />
-
-      {/* Bottom Controls */}
-      <SafeAreaView style={styles.bottomControls} edges={['bottom']}>
-        {/* Duration Selector */}
-        <View style={styles.durationRow}>
-          {([15, 30, 60] as Duration[]).map((dur, index) => {
-            const isSelected = duration === dur;
-            return (
+            {/* Right: Control Icons */}
+            <View style={styles.controlIcons}>
               <TouchableOpacity
-                key={dur}
-                style={[
-                  styles.durationChip,
-                  isSelected && { backgroundColor: '#03CA59' },
-                  !isSelected && { borderWidth: 1, borderColor: 'rgba(249, 250, 251, 0.3)' },
-                  index > 0 && { marginLeft: 12 },
-                ]}
-                onPress={() => handleDurationSelect(dur)}
+                style={[styles.controlIcon, { marginLeft: 16 }]}
+                onPress={handleFlipCamera}
                 activeOpacity={0.8}
-                disabled={isRecording}
               >
-                <Text
-                  style={[
-                    styles.durationText,
-                    { color: isSelected ? '#020617' : 'rgba(249, 250, 251, 0.7)' },
-                  ]}
-                >
-                  {dur}s
-                </Text>
+                <Ionicons
+                  name="camera-reverse"
+                  size={24}
+                  color={cameraFacing === 'front' ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
+                />
               </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Mode Badge - Video Only */}
-        <View style={styles.modeRow}>
-          <View style={[styles.modeChip, { backgroundColor: 'rgba(3, 202, 89, 0.2)' }]}>
-            <Text style={[styles.modeText, { color: '#03CA59' }]}>VIDEO</Text>
+              <TouchableOpacity
+                style={styles.controlIcon}
+                onPress={handleToggleFlash}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={flashIconName}
+                  size={24}
+                  color={flashMode !== 'off' ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.controlIcon}
+                onPress={handleToggleFilter}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons
+                  name="filter"
+                  size={24}
+                  color={activeFilterId ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.controlIcon}
+                onPress={handleToggleBeauty}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons
+                  name="face"
+                  size={24}
+                  color={beautyEnabled ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
-        {/* Center Area: Capture Button */}
-        <View style={styles.captureArea}>
-          <View style={styles.captureButtonContainer}>
-            {/* Progress Ring */}
-            <View style={styles.progressRingContainer}>
-              <View
-                style={[
-                  styles.progressRingBackground,
-                  {
-                    borderColor: isRecording ? 'rgba(255, 0, 0, 0.3)' : 'rgba(3, 202, 89, 0.3)',
-                  },
-                ]}
-              />
-              {isRecording && (
-                <Animated.View
+        {/* Recording Indicator */}
+        {isRecording && (
+          <View style={styles.recordingIndicator}>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingText}>REC</Text>
+          </View>
+        )}
+
+        {/* Bottom Gradient Overlay */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.6)']}
+          style={styles.bottomGradient}
+          pointerEvents="none"
+        />
+
+        {/* Bottom Controls */}
+        <SafeAreaView style={styles.bottomControls} edges={['bottom']}>
+          {/* Duration Selector */}
+          <View style={styles.durationRow}>
+            {([15, 30, 60] as Duration[]).map((dur, index) => {
+              const isSelected = duration === dur;
+              return (
+                <TouchableOpacity
+                  key={dur}
                   style={[
-                    styles.progressRingFill,
+                    styles.durationChip,
+                    isSelected && { backgroundColor: '#03CA59' },
+                    !isSelected && { borderWidth: 1, borderColor: 'rgba(249, 250, 251, 0.3)' },
+                    index > 0 && { marginLeft: 12 },
+                  ]}
+                  onPress={() => handleDurationSelect(dur)}
+                  activeOpacity={0.8}
+                  disabled={isRecording}
+                >
+                  <Text
+                    style={[
+                      styles.durationText,
+                      { color: isSelected ? '#020617' : 'rgba(249, 250, 251, 0.7)' },
+                    ]}
+                  >
+                    {dur}s
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Mode Badge - Video Only */}
+          <View style={styles.modeRow}>
+            <View style={[styles.modeChip, { backgroundColor: 'rgba(3, 202, 89, 0.2)' }]}>
+              <Text style={[styles.modeText, { color: '#03CA59' }]}>VIDEO</Text>
+            </View>
+          </View>
+
+          {/* Center Area: Capture Button */}
+          <View style={styles.captureArea}>
+            <View style={styles.captureButtonContainer}>
+              {/* Progress Ring */}
+              <View style={styles.progressRingContainer}>
+                <View
+                  style={[
+                    styles.progressRingBackground,
                     {
-                      borderColor: '#FF0000',
-                      borderWidth: 4,
-                      width: 90,
-                      height: 90,
-                      borderRadius: 45,
-                      borderTopColor: '#FF0000',
-                      borderRightColor: progressAnimRef.current.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: ['transparent', '#FF0000', '#FF0000'],
-                      }) as any,
-                      borderBottomColor: progressAnimRef.current.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: ['transparent', 'transparent', '#FF0000'],
-                      }) as any,
-                      borderLeftColor: progressAnimRef.current.interpolate({
-                        inputRange: [0, 0.25, 0.5, 0.75, 1],
-                        outputRange: ['transparent', 'transparent', 'transparent', 'transparent', '#FF0000'],
-                      }) as any,
-                      transform: [
-                        {
-                          rotate: progressAnimRef.current.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: ['-90deg', '270deg'],
-                          }) as any,
-                        },
-                      ],
+                      borderColor: isRecording ? 'rgba(255, 0, 0, 0.3)' : 'rgba(3, 202, 89, 0.3)',
                     },
                   ]}
                 />
-              )}
+                {isRecording && (
+                  <Animated.View
+                    style={[
+                      styles.progressRingFill,
+                      {
+                        borderColor: '#FF0000',
+                        borderWidth: 4,
+                        width: 90,
+                        height: 90,
+                        borderRadius: 45,
+                        borderTopColor: '#FF0000',
+                        borderRightColor: progressAnimRef.current.interpolate({
+                          inputRange: [0, 0.5, 1],
+                          outputRange: ['transparent', '#FF0000', '#FF0000'],
+                        }) as any,
+                        borderBottomColor: progressAnimRef.current.interpolate({
+                          inputRange: [0, 0.5, 1],
+                          outputRange: ['transparent', 'transparent', '#FF0000'],
+                        }) as any,
+                        borderLeftColor: progressAnimRef.current.interpolate({
+                          inputRange: [0, 0.25, 0.5, 0.75, 1],
+                          outputRange: [
+                            'transparent',
+                            'transparent',
+                            'transparent',
+                            'transparent',
+                            '#FF0000',
+                          ],
+                        }) as any,
+                        transform: [
+                          {
+                            rotate: progressAnimRef.current.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ['-90deg', '270deg'],
+                            }) as any,
+                          },
+                        ],
+                      },
+                    ]}
+                  />
+                )}
+              </View>
+
+              {/* Capture Button */}
+              <TouchableOpacity
+                style={[
+                  styles.captureButton,
+                  {
+                    backgroundColor: isRecording ? '#FF0000' : '#03CA59',
+                    borderColor: '#03CA59',
+                  },
+                ]}
+                onPress={handleCapture}
+                activeOpacity={0.9}
+              >
+                <View style={styles.captureButtonInner} />
+              </TouchableOpacity>
             </View>
 
-            {/* Capture Button */}
-            <TouchableOpacity
-              style={[
-                styles.captureButton,
-                {
-                  backgroundColor: isRecording ? '#FF0000' : '#03CA59',
-                  borderColor: '#03CA59',
-                },
-              ]}
-              onPress={handleCapture}
-              activeOpacity={0.9}
-            >
-              <View style={styles.captureButtonInner} />
-            </TouchableOpacity>
+            {/* Timer Display */}
+            <Text style={styles.timerText}>
+              {formatTime(elapsedMs)} / {formatTime(duration * 1000)}
+            </Text>
           </View>
 
-          {/* Timer Display */}
-          <Text style={styles.timerText}>
-            {formatTime(elapsedMs)} / {formatTime(duration * 1000)}
-          </Text>
-        </View>
+          {/* Bottom Row: Gallery Thumbnail and Save Button */}
+          <View style={styles.bottomRow}>
+            {/* Gallery Thumbnail */}
+            <TouchableOpacity style={styles.galleryThumbnail} activeOpacity={0.8}>
+              {lastVideoUri ? (
+                <View style={styles.thumbnailPlaceholder}>
+                  <Ionicons name="videocam" size={20} color="#9CA3AF" />
+                </View>
+              ) : (
+                <View style={styles.thumbnailPlaceholder}>
+                  <Ionicons name="videocam-outline" size={24} color="#9CA3AF" />
+                </View>
+              )}
+            </TouchableOpacity>
 
-        {/* Bottom Row: Gallery Thumbnail and Save Button */}
-        <View style={styles.bottomRow}>
-          {/* Gallery Thumbnail */}
-          <TouchableOpacity
-            style={styles.galleryThumbnail}
-            activeOpacity={0.8}
-          >
-            {lastVideoUri ? (
-              <View style={styles.thumbnailPlaceholder}>
-                <Ionicons name="videocam" size={20} color="#9CA3AF" />
-              </View>
-            ) : (
-              <View style={styles.thumbnailPlaceholder}>
-                <Ionicons name="videocam-outline" size={24} color="#9CA3AF" />
+            {/* Save Video Button - shown when video is recorded */}
+            {lastVideoUri && (
+              <View style={styles.saveButtonContainer}>
+                <SaveVideoButton uri={lastVideoUri} />
               </View>
             )}
-          </TouchableOpacity>
+          </View>
+        </SafeAreaView>
 
-          {/* Save Video Button - shown when video is recorded */}
-          {lastVideoUri && (
-            <View style={styles.saveButtonContainer}>
-              <SaveVideoButton uri={lastVideoUri} />
-            </View>
-          )}
-        </View>
-      </SafeAreaView>
-
-      {/* Post Recording Modal */}
-      {showPostModal && recordedVideoUri && (
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: 'rgba(3, 202, 89, 0.25)' }]}>
-            {/* Video Preview */}
-            <View style={[styles.modalVideoPreview, { backgroundColor: theme.background }]}>
-              <Ionicons name="videocam" size={32} color={theme.accent} />
-              <Text style={[styles.modalVideoLabel, { color: theme.mutedText }]}>Video recorded</Text>
-              {recordedDuration > 0 && (
-                <Text style={[styles.modalDuration, { color: theme.mutedText }]}>
-                  {formatTime(recordedDuration * 1000)}
+        {/* Post Recording Modal */}
+        {showPostModal && recordedVideoUri && (
+          <View style={styles.modalBackdrop}>
+            <View
+              style={[
+                styles.modalCard,
+                { backgroundColor: theme.card, borderColor: 'rgba(3, 202, 89, 0.25)' },
+              ]}
+            >
+              {/* Video Preview */}
+              <View style={[styles.modalVideoPreview, { backgroundColor: theme.background }]}>
+                <Ionicons name="videocam" size={32} color={theme.accent} />
+                <Text style={[styles.modalVideoLabel, { color: theme.mutedText }]}>
+                  Video recorded
                 </Text>
-              )}
-            </View>
+                {recordedDuration > 0 && (
+                  <Text style={[styles.modalDuration, { color: theme.mutedText }]}>
+                    {formatTime(recordedDuration * 1000)}
+                  </Text>
+                )}
+              </View>
 
-            {/* Modal Content */}
-            <Text style={[styles.modalTitle, { color: theme.text }]}>Post this run to your feed?</Text>
+              {/* Modal Content */}
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                Post this run to your feed?
+              </Text>
 
-            {/* Buttons */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButtonPrimary, { backgroundColor: theme.accent }]}
-                onPress={handlePostToFeed}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.modalButtonPrimaryText, { color: '#020617' }]}>Post on feed</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButtonSecondary, { borderColor: 'rgba(148, 163, 184, 0.6)' }]}
-                onPress={handleDiscard}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.modalButtonSecondaryText, { color: theme.mutedText }]}>Discard</Text>
-              </TouchableOpacity>
+              {/* Buttons */}
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButtonPrimary, { backgroundColor: theme.accent }]}
+                  onPress={handlePostToFeed}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[styles.modalButtonPrimaryText, { color: '#020617' }]}
+                  >
+                    Post on feed
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButtonSecondary,
+                    { borderColor: 'rgba(148, 163, 184, 0.6)' },
+                  ]}
+                  onPress={handleDiscard}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.modalButtonSecondaryText, { color: theme.mutedText }]}>
+                    Discard
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      )}
+        )}
       </View>
     </SafeAreaView>
   );
@@ -1059,4 +1086,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

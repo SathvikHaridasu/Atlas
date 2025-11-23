@@ -366,7 +366,7 @@ export async function sendMessage(
   sessionId: string,
   userId: string,
   content: string
-) {
+): Promise<Message> {
   // Ensure user is a member
   const { data: member } = await supabase
     .from("session_members")
@@ -390,18 +390,36 @@ export async function sendMessage(
     throw new Error("Message must have content");
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("messages")
     .insert({
       session_id: sessionId,
       user_id: userId,
       content: content.trim(),
-    });
+    })
+    .select(`
+      id,
+      session_id,
+      user_id,
+      content,
+      created_at,
+      profiles (
+        username,
+        avatar_url
+      )
+    `)
+    .single();
 
   if (error) {
     console.error(error);
     throw new Error("Failed to send message.");
   }
+
+  if (!data) {
+    throw new Error("Failed to send message: No data returned.");
+  }
+
+  return data as Message;
 }
 
 export async function getMessages(sessionId: string): Promise<Message[]> {
