@@ -43,7 +43,7 @@ export default function ChallengesScreen() {
   };
 
   const formatProgress = (goal: { currentValue: number; targetValue: number; unitLabel: string }): string => {
-    return `${Math.round(goal.currentValue)} / ${Math.round(goal.targetValue)} ${goal.unitLabel}`;
+    return `${goal.currentValue.toFixed(1)} / ${goal.targetValue.toFixed(1)} ${goal.unitLabel}`;
   };
 
   const handleCreateGoal = () => {

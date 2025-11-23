@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useGoals, Goal, GoalStep } from '../contexts/GoalsContext';
+import { useGoals, Goal, GoalStep, formatStepProgressText } from '../contexts/GoalsContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { GoalType } from '../types/goals';
 
@@ -29,13 +29,15 @@ export default function GoalDetailScreen() {
   const { goals, updateGoal, updateGoalProgress } = useGoals();
 
   const goal = goals.find((g) => g.id === goalId);
-  const [localGoal, setLocalGoal] = useState<Goal | null>(goal ?? null);
+  const [localGoal, setLocalGoal] = useState<Goal | null>(
+    goal ? { ...goal, steps: goal.steps ? [...goal.steps] : undefined } : null
+  );
 
   useEffect(() => {
     // Update local goal if the goal changes in context
     const updatedGoal = goals.find((g) => g.id === goalId);
     if (updatedGoal) {
-      setLocalGoal(updatedGoal);
+      setLocalGoal({ ...updatedGoal, steps: updatedGoal.steps ? [...updatedGoal.steps] : undefined });
     }
   }, [goals, goalId]);
 
@@ -59,6 +61,36 @@ export default function GoalDetailScreen() {
     ? Math.min(localGoal.currentValue / localGoal.targetValue, 1) 
     : 0;
 
+  // Helper to get unit label based on goal type
+  const getUnitLabel = (type: GoalType): string => {
+    switch (type) {
+      case 'distance':
+        return 'km';
+      case 'time':
+        return 'min';
+      case 'sessions':
+        return 'runs';
+      case 'points':
+      default:
+        return 'pts';
+    }
+  };
+
+  // Split target into decimal steps that sum exactly to total
+  const splitTargetIntoSteps = (total: number, count: number): number[] => {
+    if (count <= 0) return [];
+
+    const base = total / count;
+    const values = Array.from({ length: count }, () => Number(base.toFixed(1)));
+
+    // Adjust last step for rounding error so the sum is exactly equal
+    const sum = values.reduce((acc, v) => acc + v, 0);
+    const diff = Number((total - sum).toFixed(1));
+    values[count - 1] = Number((values[count - 1] + diff).toFixed(1));
+
+    return values;
+  };
+
   const getGoalIcon = (type: GoalType): string => {
     switch (type) {
       case 'distance':
@@ -75,23 +107,25 @@ export default function GoalDetailScreen() {
   };
 
   const handleStepChange = (stepId: string, nextValue: number) => {
-    if (!localGoal.steps) return;
+    if (!localGoal?.steps) return;
 
     const updatedSteps = localGoal.steps.map((step) =>
-      step.id === stepId ? { ...step, currentValue: Math.max(0, Math.min(nextValue, step.targetValue)) } : step
+      step.id === stepId
+        ? { ...step, currentValue: Number(Math.max(0, Math.min(nextValue, step.targetValue)).toFixed(1)) }
+        : step
     );
 
     const totalCurrent = updatedSteps.reduce((sum, step) => sum + step.currentValue, 0);
 
     setLocalGoal({
       ...localGoal,
-      currentValue: totalCurrent,
+      currentValue: Number(totalCurrent.toFixed(1)),
       steps: updatedSteps,
     });
   };
 
   const handleStepLabelChange = (stepId: string, label: string) => {
-    if (!localGoal.steps) return;
+    if (!localGoal?.steps) return;
 
     const updatedSteps = localGoal.steps.map((step) =>
       step.id === stepId ? { ...step, label } : step
@@ -99,6 +133,46 @@ export default function GoalDetailScreen() {
 
     setLocalGoal({
       ...localGoal,
+      steps: updatedSteps,
+    });
+  };
+
+  const handleTargetChange = (nextTarget: number) => {
+    if (!localGoal) return;
+
+    const count = localGoal.steps?.length ?? 0;
+    let updatedSteps = localGoal.steps;
+
+    if (count > 0 && updatedSteps) {
+      const perStepValues = splitTargetIntoSteps(nextTarget, count);
+
+      updatedSteps = updatedSteps.map((step, index) => ({
+        ...step,
+        targetValue: perStepValues[index],
+      }));
+    }
+
+    setLocalGoal({
+      ...localGoal,
+      targetValue: Number(nextTarget.toFixed(1)),
+      steps: updatedSteps,
+    });
+  };
+
+  const handleGoalTypeChange = (nextType: GoalType) => {
+    if (!localGoal) return;
+
+    const unitLabel = getUnitLabel(nextType);
+
+    const updatedSteps = localGoal.steps?.map((step) => ({
+      ...step,
+      unitLabel,
+    }));
+
+    setLocalGoal({
+      ...localGoal,
+      type: nextType,
+      unitLabel,
       steps: updatedSteps,
     });
   };
@@ -159,7 +233,7 @@ export default function GoalDetailScreen() {
                 placeholderTextColor={theme.mutedText}
               />
               <Text style={[styles.subtitle, { color: theme.mutedText }]}>
-                {Math.round(localGoal.currentValue)} / {Math.round(localGoal.targetValue)} {localGoal.unitLabel}
+                {localGoal.currentValue.toFixed(1)} / {localGoal.targetValue.toFixed(1)} {localGoal.unitLabel}
               </Text>
             </View>
           </View>
@@ -168,7 +242,7 @@ export default function GoalDetailScreen() {
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.cardLabel, { color: theme.text }]}>Overall Progress</Text>
             <Text style={[styles.bigValue, { color: theme.text }]}>
-              {Math.round(localGoal.currentValue)} / {Math.round(localGoal.targetValue)} {localGoal.unitLabel}
+              {localGoal.currentValue.toFixed(1)} / {localGoal.targetValue.toFixed(1)} {localGoal.unitLabel}
             </Text>
             <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
               <View
@@ -189,14 +263,15 @@ export default function GoalDetailScreen() {
             
             <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>Target Value</Text>
             <Text style={[styles.bigValue, { color: theme.text, fontSize: 24 }]}>
-              {Math.round(localGoal.targetValue)} {localGoal.unitLabel}
+              {localGoal.targetValue.toFixed(1)} {localGoal.unitLabel}
             </Text>
             <Slider
               style={styles.slider}
               minimumValue={sliderRange.min}
               maximumValue={sliderRange.max}
+              step={0.5}
               value={localGoal.targetValue}
-              onValueChange={(value) => setLocalGoal({ ...localGoal, targetValue: Math.round(value) })}
+              onValueChange={(value) => handleTargetChange(Number(value.toFixed(1)))}
               minimumTrackTintColor={theme.accent}
               maximumTrackTintColor={theme.border}
               thumbTintColor={theme.accent}
@@ -210,7 +285,7 @@ export default function GoalDetailScreen() {
           {localGoal.steps && localGoal.steps.length > 0 && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Steps</Text>
-              {localGoal.steps.map((step) => {
+              {localGoal.steps.map((step, index) => {
                 const stepProgress = step.targetValue > 0 
                   ? Math.min(step.currentValue / step.targetValue, 1) 
                   : 0;
@@ -226,7 +301,7 @@ export default function GoalDetailScreen() {
                         style={[styles.stepLabelInput, { color: theme.text }]}
                         value={step.label}
                         onChangeText={(text) => handleStepLabelChange(step.id, text)}
-                        placeholder="Step label"
+                        placeholder={`Step ${index + 1}`}
                         placeholderTextColor={theme.mutedText}
                       />
                       <View style={[styles.progressChip, { backgroundColor: theme.accent }]}>
@@ -238,7 +313,7 @@ export default function GoalDetailScreen() {
 
                     {/* Row 2: Current / Target */}
                     <Text style={[styles.stepProgressText, { color: theme.mutedText }]}>
-                      {Math.round(step.currentValue)} / {Math.round(step.targetValue)} {localGoal.unitLabel}
+                      {formatStepProgressText(step.currentValue, step.targetValue, step.unitLabel)}
                     </Text>
 
                     {/* Row 3: Progress bar */}
@@ -256,8 +331,9 @@ export default function GoalDetailScreen() {
                       style={styles.stepSlider}
                       minimumValue={0}
                       maximumValue={step.targetValue}
+                      step={0.5}
                       value={step.currentValue}
-                      onValueChange={(value) => handleStepChange(step.id, Math.round(value))}
+                      onValueChange={(value) => handleStepChange(step.id, Number(value.toFixed(1)))}
                       minimumTrackTintColor={theme.accent}
                       maximumTrackTintColor={theme.border}
                       thumbTintColor={theme.accent}

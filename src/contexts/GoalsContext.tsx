@@ -3,9 +3,10 @@ import { GoalType } from '../types/goals';
 
 export interface GoalStep {
   id: string;
-  label: string;
+  label: string; // user-defined step name
   targetValue: number;
   currentValue: number;
+  unitLabel: string; // 'km', 'min', 'runs', 'pts'
 }
 
 export interface Goal {
@@ -41,9 +42,9 @@ export const GoalsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       unitLabel: 'km',
       stepCount: 3,
       steps: [
-        { id: 'seed-1-step-1', label: 'Step 1', targetValue: 10, currentValue: 5 },
-        { id: 'seed-1-step-2', label: 'Step 2', targetValue: 10, currentValue: 5 },
-        { id: 'seed-1-step-3', label: 'Step 3', targetValue: 10, currentValue: 5 },
+        { id: 'seed-1-step-1', label: 'Step 1', targetValue: 10, currentValue: 5, unitLabel: 'km' },
+        { id: 'seed-1-step-2', label: 'Step 2', targetValue: 10, currentValue: 5, unitLabel: 'km' },
+        { id: 'seed-1-step-3', label: 'Step 3', targetValue: 10, currentValue: 5, unitLabel: 'km' },
       ],
       createdAt: new Date().toISOString(),
     },
@@ -56,9 +57,9 @@ export const GoalsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       unitLabel: 'runs',
       stepCount: 3,
       steps: [
-        { id: 'seed-2-step-1', label: 'Step 1', targetValue: 2, currentValue: 1 },
-        { id: 'seed-2-step-2', label: 'Step 2', targetValue: 2, currentValue: 1 },
-        { id: 'seed-2-step-3', label: 'Step 3', targetValue: 1, currentValue: 0 },
+        { id: 'seed-2-step-1', label: 'Step 1', targetValue: 2, currentValue: 1, unitLabel: 'runs' },
+        { id: 'seed-2-step-2', label: 'Step 2', targetValue: 2, currentValue: 1, unitLabel: 'runs' },
+        { id: 'seed-2-step-3', label: 'Step 3', targetValue: 1, currentValue: 0, unitLabel: 'runs' },
       ],
       createdAt: new Date().toISOString(),
     },
@@ -89,5 +90,16 @@ export const useGoals = (): GoalsContextValue => {
     throw new Error('useGoals must be used within a GoalsProvider');
   }
   return ctx;
+};
+
+// Shared formatter for step progress text
+export const formatStepProgressText = (
+  currentValue: number,
+  targetValue: number,
+  unitLabel: string,
+): string => {
+  const current = Number(currentValue.toFixed(1));
+  const target = Number(targetValue.toFixed(1));
+  return `${current} / ${target} ${unitLabel}`;
 };
 

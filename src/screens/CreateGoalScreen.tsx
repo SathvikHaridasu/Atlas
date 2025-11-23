@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useGoals, Goal, GoalStep } from '../contexts/GoalsContext';
+import { useGoals, Goal, GoalStep, formatStepProgressText } from '../contexts/GoalsContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { GoalType, NewGoal } from '../types/goals';
 
@@ -32,6 +32,36 @@ export default function CreateGoalScreen() {
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [tempDate, setTempDate] = useState<Date>(new Date());
+
+  // Helper to get unit label based on goal type
+  const getUnitLabel = (type: GoalType): string => {
+    switch (type) {
+      case 'distance':
+        return 'km';
+      case 'time':
+        return 'min';
+      case 'sessions':
+        return 'runs';
+      case 'points':
+      default:
+        return 'pts';
+    }
+  };
+
+  // Split target into decimal steps that sum exactly to total
+  const splitTargetIntoSteps = (total: number, count: number): number[] => {
+    if (count <= 0) return [];
+
+    const base = total / count;
+    const values = Array.from({ length: count }, () => Number(base.toFixed(1)));
+
+    // Adjust last step for rounding error so the sum is exactly equal
+    const sum = values.reduce((acc, v) => acc + v, 0);
+    const diff = Number((total - sum).toFixed(1));
+    values[count - 1] = Number((values[count - 1] + diff).toFixed(1));
+
+    return values;
+  };
 
   // Get default target value based on goal type
   const getDefaultTarget = (type: GoalType): number => {
@@ -99,18 +129,16 @@ export default function CreateGoalScreen() {
 
   // Auto-generate steps when stepCount or targetValue changes
   useEffect(() => {
-    const roundedTarget = Math.round(targetValue);
-    const stepTarget = Math.round(roundedTarget / stepCount);
-    const newSteps: GoalStep[] = [];
-    for (let i = 0; i < stepCount; i++) {
-      newSteps.push({
-        id: i + 1,
-        label: '',
-        target: stepTarget,
-      });
-    }
+    const perStepValues = splitTargetIntoSteps(targetValue, stepCount);
+    const newSteps: GoalStep[] = perStepValues.map((value, index) => ({
+      id: index + 1,
+      label: `Step ${index + 1}`,
+      targetValue: value,
+      currentValue: 0,
+      unitLabel: getUnitLabel(goalType),
+    }));
     setSteps(newSteps);
-  }, [stepCount, targetValue]);
+  }, [stepCount, targetValue, goalType]);
 
   // Reset target value when goal type changes
   useEffect(() => {
@@ -119,13 +147,12 @@ export default function CreateGoalScreen() {
 
   // Update step target when targetValue changes
   useEffect(() => {
-    if (steps.length > 0) {
-      const roundedTarget = Math.round(targetValue);
-      const stepTarget = Math.round(roundedTarget / stepCount);
+    if (steps.length > 0 && steps.length === stepCount) {
+      const perStepValues = splitTargetIntoSteps(targetValue, stepCount);
       setSteps((prevSteps) =>
-        prevSteps.map((step) => ({
+        prevSteps.map((step, index) => ({
           ...step,
-          target: stepTarget,
+          targetValue: perStepValues[index] || step.targetValue,
         }))
       );
     }
@@ -142,37 +169,28 @@ export default function CreateGoalScreen() {
       return;
     }
 
-    const unitLabel =
-      goalType === 'distance'
-        ? 'km'
-        : goalType === 'time'
-        ? 'min'
-        : goalType === 'sessions'
-        ? 'runs'
-        : 'pts';
-
+    const unitLabel = getUnitLabel(goalType);
     const goalId = `goal_${Date.now()}`;
     
-    // Generate default steps evenly split across targetValue
-    const stepTargetValue = Math.round(targetValue / stepCount);
-    const steps: GoalStep[] = Array.from({ length: stepCount }).map((_, index) => ({
+    // Use steps from state to preserve user-edited labels, or generate new ones
+    const perStepValues = splitTargetIntoSteps(targetValue, stepCount);
+    const goalSteps: GoalStep[] = perStepValues.map((value, index) => ({
       id: `${goalId}-step-${index + 1}`,
-      label: `Step ${index + 1}`,
-      targetValue: index === stepCount - 1 
-        ? targetValue - (stepTargetValue * (stepCount - 1)) // Last step gets remainder
-        : stepTargetValue,
+      label: steps[index]?.label || `Step ${index + 1}`, // preserve user-edited label or use default
+      targetValue: value,
       currentValue: 0,
+      unitLabel, // consistent unit for all steps
     }));
 
     const newGoal: Goal = {
       id: goalId,
       title: goalTitle.trim(),
       type: goalType,
-      targetValue: Math.round(targetValue),
+      targetValue: Number(targetValue.toFixed(1)),
       currentValue: 0,
       unitLabel,
       stepCount: stepCount,
-      steps,
+      steps: goalSteps,
       createdAt: new Date().toISOString(),
     };
 
@@ -193,8 +211,7 @@ export default function CreateGoalScreen() {
   };
 
   const formatTarget = (): string => {
-    const roundedTarget = Math.round(targetValue);
-    return `${roundedTarget} ${getUnit(goalType)}`;
+    return `${targetValue.toFixed(1)} ${getUnit(goalType)}`;
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -313,8 +330,9 @@ export default function CreateGoalScreen() {
               style={styles.slider}
               minimumValue={sliderRange.min}
               maximumValue={sliderRange.max}
+              step={0.5}
               value={targetValue}
-              onValueChange={(v) => setTargetValue(Math.round(v))}
+              onValueChange={(v) => setTargetValue(Number(v.toFixed(1)))}
               minimumTrackTintColor={theme.accent}
               maximumTrackTintColor={theme.border}
               thumbTintColor={theme.accent}
@@ -342,23 +360,21 @@ export default function CreateGoalScreen() {
               thumbTintColor={theme.accent}
               step={1}
             />
-            {steps.map((step) => (
+            {steps.map((step, index) => (
               <View key={step.id} style={styles.stepRow}>
                 <TextInput
                   style={[
                     styles.stepInput,
                     { color: theme.text, borderColor: theme.border, backgroundColor: theme.background },
                   ]}
-                  placeholder={`Ex: Step ${step.id} - First easy run`}
+                  placeholder={`Step ${index + 1}`}
                   placeholderTextColor={theme.mutedText}
                   value={step.label}
                   onChangeText={(text) => handleStepLabelChange(step.id, text)}
                 />
-                <View style={[styles.stepTarget, { backgroundColor: theme.border, marginLeft: 8 }]}>
-                  <Text style={[styles.stepTargetText, { color: theme.text }]}>
-                    {Math.round(step.target)} {unit}
-                  </Text>
-                </View>
+                <Text style={[styles.stepProgressText, { color: theme.mutedText }]}>
+                  {formatStepProgressText(0, step.targetValue, step.unitLabel)}
+                </Text>
               </View>
             ))}
             <Text style={[styles.hintText, { color: theme.mutedText, marginTop: 8 }]}>
@@ -586,17 +602,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 12,
   },
   stepInput: {
-    flex: 1,
+    width: '100%',
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
+    marginBottom: 4,
+  },
+  stepProgressText: {
+    fontSize: 14,
+    marginTop: 4,
   },
   stepTarget: {
     paddingHorizontal: 12,
