@@ -191,32 +191,13 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
     if (!hasText && !hasImages) return;
     if (!user) return;
 
-    // If sessionId exists, upload to Supabase and use sendMessage
+    // If sessionId exists, use sendMessage
     if (sessionId) {
-      setUploadingImage(true);
       try {
-        if (hasImages) {
-          for (const imageUri of selectedImages) {
-            try {
-              const imageUrl = await uploadImageToStorage(imageUri, 'chat-images', sessionId);
-              const textToSend = selectedImages.indexOf(imageUri) === 0 && hasText ? inputText.trim() : null;
-              
-              // Import sendMessage from sessionService
-              const { sendMessage } = await import('../../lib/sessionService');
-              await sendMessage(sessionId, user.id, textToSend, imageUrl);
-            } catch (error: any) {
-              console.error('Error uploading image:', error);
-              Alert.alert('Error', `Failed to upload image: ${error.message}`);
-              return;
-            }
-          }
-        } else {
-          const { sendMessage } = await import('../../lib/sessionService');
-          await sendMessage(sessionId, user.id, inputText.trim(), null);
-        }
+        const { sendMessage } = await import('../../lib/sessionService');
+        await sendMessage(sessionId, user.id, inputText.trim());
 
         setInputText('');
-        setSelectedImages([]);
         setTimeout(() => {
           messagesListRef.current?.scrollToEnd({ animated: true });
         }, 100);

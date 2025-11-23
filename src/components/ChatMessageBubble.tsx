@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 
 // Color constants matching the dark Instagram DM theme with green accent
 const COLORS = {
@@ -33,7 +32,6 @@ const AVATAR_COLORS = [
 interface Message {
   id: string;
   content: string | null;
-  image_url: string | null;
   created_at: string;
   user_id: string;
   profiles?: {
@@ -98,16 +96,9 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   isOwn,
   senderName,
 }) => {
-  const [imageModalVisible, setImageModalVisible] = useState(false);
   const avatarUrl = message.profiles?.avatar_url;
   const avatarColor = getAvatarColor(message.user_id);
   const userInitial = getUserInitial(senderName);
-
-  const handleImagePress = () => {
-    if (message.image_url) {
-      setImageModalVisible(true);
-    }
-  };
 
   return (
     <View style={[styles.container, isOwn ? styles.containerOwn : styles.containerOther]}>
@@ -133,32 +124,11 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
           style={[
             styles.bubble,
             isOwn ? styles.bubbleOwn : styles.bubbleOther,
-            !message.content && message.image_url && styles.imageOnlyBubble,
           ]}
         >
-          {/* Image */}
-          {message.image_url && (
-            <TouchableOpacity onPress={handleImagePress} activeOpacity={0.9}>
-              <Image
-                source={{ uri: message.image_url }}
-                style={[
-                  styles.messageImage,
-                  message.content && styles.messageImageWithText,
-                ]}
-                contentFit="cover"
-                transition={200}
-              />
-            </TouchableOpacity>
-          )}
-
           {/* Text content */}
           {message.content && (
-            <Text
-              style={[
-                styles.messageText,
-                message.image_url && styles.messageTextWithImage,
-              ]}
-            >
+            <Text style={styles.messageText}>
               {message.content}
             </Text>
           )}
@@ -187,36 +157,6 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
           )}
         </View>
       )}
-
-      {/* Full-screen image modal */}
-      <Modal
-        visible={imageModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setImageModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalContainer}
-          activeOpacity={1}
-          onPress={() => setImageModalVisible(false)}
-        >
-          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-            {message.image_url && (
-              <Image
-                source={{ uri: message.image_url }}
-                style={styles.fullScreenImage}
-                contentFit="contain"
-              />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setImageModalVisible(false)}
-          >
-            <Ionicons name="close" size={32} color="#FFFFFF" />
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
     </View>
   );
 };
@@ -288,25 +228,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bubbleOtherStart,
     borderBottomLeftRadius: 4,
   },
-  imageOnlyBubble: {
-    padding: 0,
-  },
-  messageImage: {
-    width: 250,
-    height: 250,
-    borderRadius: 16,
-    marginBottom: 0,
-  },
-  messageImageWithText: {
-    marginBottom: 8,
-  },
   messageText: {
     fontSize: 15,
     color: COLORS.textWhite,
     lineHeight: 20,
-  },
-  messageTextWithImage: {
-    marginTop: 0,
   },
   timestamp: {
     fontSize: 10,
@@ -320,22 +245,5 @@ const styles = StyleSheet.create({
   timestampOther: {
     textAlign: 'left',
     marginLeft: 4,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullScreenImage: {
-    width: '100%',
-    height: '100%',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    padding: 10,
-    zIndex: 10,
   },
 });

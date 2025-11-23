@@ -209,38 +209,17 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
 
   const handleSendMessage = async () => {
     const hasText = chatText.trim().length > 0;
-    const hasImages = selectedImages.length > 0;
 
-    if (!hasText && !hasImages) return;
+    if (!hasText) return;
     if (!user) return;
 
     setSendingMessage(true);
-    setUploadingImage(true);
 
     try {
-      // If there are images, upload them first
-      if (hasImages) {
-        for (const imageUri of selectedImages) {
-          try {
-            // Upload image to Supabase Storage
-            const imageUrl = await uploadImageToStorage(imageUri, 'chat-images', sessionId);
-            
-            // Send message with image
-            const textToSend = selectedImages.indexOf(imageUri) === 0 && hasText ? chatText.trim() : null;
-            await sendMessage(sessionId, user.id, textToSend, imageUrl);
-          } catch (error: any) {
-            console.error('Error uploading image:', error);
-            Alert.alert('Error', `Failed to upload image: ${error.message}`);
-            return;
-          }
-        }
-      } else {
-        // Send text-only message
-        await sendMessage(sessionId, user.id, chatText.trim(), null);
-      }
+      // Send text message
+      await sendMessage(sessionId, user.id, chatText.trim());
 
       setChatText('');
-      setSelectedImages([]);
       
       // Scroll to bottom after sending
       setTimeout(() => {
