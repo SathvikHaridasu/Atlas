@@ -6,8 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 // Color constants matching the dark Instagram DM theme with green accent
 const COLORS = {
   backgroundDark: '#020617', // Dark background
-  bubbleOwn: '#03CA59', // Brand green for own messages
-  bubbleOther: '#262b35', // Dark gray for other messages
+  bubbleOwnStart: '#03CA59', // Brand green for own messages
+  bubbleOwnEnd: '#16DB7E', // Lighter green for own messages
+  bubbleOtherStart: '#2563EB', // Blue for received messages
+  bubbleOtherEnd: '#4F46E5', // Purple-blue for received messages
   textWhite: '#FFFFFF',
   textLightGray: '#E5E7EB',
   textMuted: '#9CA3AF',
@@ -16,8 +18,16 @@ const COLORS = {
 
 // Avatar color palette for initials
 const AVATAR_COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
-  '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52BE80',
+  '#FF6B6B',
+  '#4ECDC4',
+  '#45B7D1',
+  '#FFA07A',
+  '#98D8C8',
+  '#F7DC6F',
+  '#BB8FCE',
+  '#85C1E2',
+  '#F8B739',
+  '#52BE80',
 ];
 
 interface Message {
@@ -45,33 +55,34 @@ interface ChatMessageBubbleProps {
 function formatTime(timestamp: string): string {
   const date = new Date(timestamp);
   const now = new Date();
-  
+
   // Get hours and minutes
   const hours = date.getHours();
   const minutes = date.getMinutes();
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   const displayMinutes = minutes.toString().padStart(2, '0');
-  
+
   // If same day, show time only
   if (date.toDateString() === now.toDateString()) {
     return `${displayHours}:${displayMinutes} ${ampm}`;
   }
-  
-  // Otherwise show date
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
+
+  // Otherwise show date + time
+  const datePart = date.toLocaleDateString('en-US', {
+    month: 'short',
     day: 'numeric',
-    hour: displayHours,
-    minute: displayMinutes,
   });
+  return `${datePart} ${displayHours}:${displayMinutes} ${ampm}`;
 }
 
 /**
  * Get avatar color based on user ID
  */
 function getAvatarColor(userId: string): string {
-  const index = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const index = userId
+    .split('')
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return AVATAR_COLORS[index % AVATAR_COLORS.length];
 }
 
@@ -82,10 +93,10 @@ function getUserInitial(senderName: string): string {
   return senderName.charAt(0).toUpperCase();
 }
 
-export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({ 
-  message, 
-  isOwn, 
-  senderName 
+export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
+  message,
+  isOwn,
+  senderName,
 }) => {
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const avatarUrl = message.profiles?.avatar_url;
@@ -100,7 +111,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 
   return (
     <View style={[styles.container, isOwn ? styles.containerOwn : styles.containerOther]}>
-      {/* Avatar - Left side for others, right side for own */}
+      {/* Avatar - Left side for others */}
       {!isOwn && (
         <View style={styles.avatarContainer}>
           {avatarUrl ? (
@@ -115,16 +126,16 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 
       <View style={styles.messageWrapper}>
         {/* Username above bubble (only show for other users) */}
-        {!isOwn && (
-          <Text style={styles.username}>{senderName}</Text>
-        )}
-        
+        {!isOwn && <Text style={styles.username}>{senderName}</Text>}
+
         {/* Message Bubble */}
-        <View style={[
-          styles.bubble,
-          isOwn ? styles.bubbleOwn : styles.bubbleOther,
-          !message.content && message.image_url && styles.imageOnlyBubble
-        ]}>
+        <View
+          style={[
+            styles.bubble,
+            isOwn ? styles.bubbleOwn : styles.bubbleOther,
+            !message.content && message.image_url && styles.imageOnlyBubble,
+          ]}
+        >
           {/* Image */}
           {message.image_url && (
             <TouchableOpacity onPress={handleImagePress} activeOpacity={0.9}>
@@ -132,30 +143,34 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 source={{ uri: message.image_url }}
                 style={[
                   styles.messageImage,
-                  message.content && styles.messageImageWithText
+                  message.content && styles.messageImageWithText,
                 ]}
                 contentFit="cover"
                 transition={200}
               />
             </TouchableOpacity>
           )}
-          
+
           {/* Text content */}
           {message.content && (
-            <Text style={[
-              styles.messageText,
-              message.image_url && styles.messageTextWithImage
-            ]}>
+            <Text
+              style={[
+                styles.messageText,
+                message.image_url && styles.messageTextWithImage,
+              ]}
+            >
               {message.content}
             </Text>
           )}
         </View>
-        
+
         {/* Timestamp below bubble */}
-        <Text style={[
-          styles.timestamp,
-          isOwn ? styles.timestampOwn : styles.timestampOther
-        ]}>
+        <Text
+          style={[
+            styles.timestamp,
+            isOwn ? styles.timestampOwn : styles.timestampOther,
+          ]}
+        >
           {formatTime(message.created_at)}
         </Text>
       </View>
@@ -176,7 +191,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
       {/* Full-screen image modal */}
       <Modal
         visible={imageModalVisible}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={() => setImageModalVisible(false)}
       >
@@ -220,6 +235,7 @@ const styles = StyleSheet.create({
   },
   containerOther: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
   },
   avatarContainer: {
     marginHorizontal: 8,
@@ -254,21 +270,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: COLORS.textLightGray,
-    marginBottom: 4,
+    marginBottom: 2,
     marginLeft: 4,
   },
   bubble: {
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
     maxWidth: '100%',
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     overflow: 'hidden',
   },
   bubbleOwn: {
-    backgroundColor: COLORS.bubbleOwn,
+    backgroundColor: COLORS.bubbleOwnStart,
+    borderBottomRightRadius: 4,
   },
   bubbleOther: {
-    backgroundColor: COLORS.bubbleOther,
+    backgroundColor: COLORS.bubbleOtherStart,
+    borderBottomLeftRadius: 4,
   },
   imageOnlyBubble: {
     padding: 0,
@@ -293,7 +311,7 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 10,
     color: COLORS.textTimestamp,
-    marginTop: 4,
+    marginTop: 2,
   },
   timestampOwn: {
     textAlign: 'right',
