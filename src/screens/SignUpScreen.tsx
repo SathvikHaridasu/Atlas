@@ -1,33 +1,24 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function SignInScreen({ navigation }: any) {
-  const { signIn, loading, user } = useAuth();
+export default function SignUpScreen() {
+  const { signUp, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // If user is already signed in, show message (navigation will handle this via gating)
-  if (user) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.title}>You're already signed in</Text>
-      </View>
-    );
-  }
-
-  const handleSignIn = async () => {
+  const handleSignUp = async () => {
     setError('');
 
     if (!email.trim() || !password.trim()) {
@@ -36,15 +27,14 @@ export default function SignInScreen({ navigation }: any) {
     }
 
     setSubmitting(true);
-    const result = await signIn(email.trim(), password);
+    const result = await signUp(email.trim(), password.trim());
     setSubmitting(false);
 
     if (result.error) {
-      setError(result.error);
+      setError(result.error.message);
     }
-    // Successful login will be handled by navigation gating
+    // Successful sign up will be handled by navigation gating
   };
-
 
   return (
     <KeyboardAvoidingView
@@ -52,7 +42,7 @@ export default function SignInScreen({ navigation }: any) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Sign in to Atlas</Text>
+        <Text style={styles.title}>Create Account</Text>
 
         <TextInput
           style={styles.input}
@@ -82,23 +72,15 @@ export default function SignInScreen({ navigation }: any) {
 
         <TouchableOpacity
           style={[styles.button, (submitting || loading) && styles.buttonDisabled]}
-          onPress={handleSignIn}
+          onPress={handleSignUp}
           disabled={submitting || loading}
           activeOpacity={0.8}
         >
           {submitting || loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
+            <Text style={styles.buttonText}>Create Account</Text>
           )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.signUpLink}
-          onPress={() => navigation.navigate('SignUp')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.signUpText}>No account? Create one here!</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -134,19 +116,11 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#10B981',
     borderRadius: 999,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
-  },
-  signUpLink: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  signUpText: {
-    color: '#2563EB',
-    fontSize: 14,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -164,4 +138,3 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 });
-
