@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function SignInScreen({ navigation }: any) {
@@ -19,21 +19,17 @@ export default function SignInScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   // If user is already signed in, show message (navigation will handle this via gating)
   if (user) {
     return (
-      <ImageBackground
-        source={{ uri: 'https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=800' }}
-        style={styles.backgroundImage}
-        imageStyle={styles.backgroundImageStyle}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.container}>
-            <Text style={styles.alreadySignedInText}>You're already signed in</Text>
-          </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContent}>
+          <Text style={styles.alreadySignedInText}>You're already signed in</Text>
         </View>
-      </ImageBackground>
+      </SafeAreaView>
     );
   }
 
@@ -56,244 +52,204 @@ export default function SignInScreen({ navigation }: any) {
   };
 
   return (
-    <ImageBackground
-      source={{ uri: 'https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=800' }}
-      style={styles.backgroundImage}
-      imageStyle={styles.backgroundImageStyle}
-    >
-      <View style={styles.overlay}>
-        <KeyboardAvoidingView
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.content}>
-              {/* Logo */}
-              <View style={styles.logoContainer}>
-                <Text style={styles.logo}>ATLAS</Text>
-              </View>
-
-              {/* Headline */}
-              <Text style={styles.headline}>Sign in to continue.</Text>
-
-              {/* Form */}
-              <View style={styles.form}>
-                {/* Email Input */}
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>EMAIL</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Email"
-                    placeholderTextColor="#9CA3AF"
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    keyboardType="email-address"
-                    editable={!submitting && !loading}
-                  />
-                </View>
-
-                {/* Password Input */}
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>PASSWORD</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Password"
-                    placeholderTextColor="#9CA3AF"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoComplete="password"
-                    editable={!submitting && !loading}
-                  />
-                </View>
-
-                {/* Error Message */}
-                {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-                {/* Log In Button */}
-                <TouchableOpacity
-                  style={[styles.button, (submitting || loading) && styles.buttonDisabled]}
-                  onPress={handleSignIn}
-                  disabled={submitting || loading}
-                  activeOpacity={0.8}
-                >
-                  {submitting || loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.buttonText}>Log In</Text>
-                  )}
-                </TouchableOpacity>
-
-                {/* Sign Up Link */}
-                <TouchableOpacity
-                  style={styles.signUpLink}
-                  onPress={() => navigation.navigate('SignUp')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.signUpText}>No account? Create one here!</Text>
-                </TouchableOpacity>
-              </View>
+          {/* Logo + title */}
+          <View style={styles.header}>
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoInitial}>AR</Text>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
-    </ImageBackground>
+            <Text style={styles.appName}>Atlas Run</Text>
+            <Text style={styles.subtitle}>Log in to start your next dare.</Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            {/* Email Input */}
+            <View style={[styles.inputContainer, isEmailFocused && styles.inputFocused]}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="you@example.com"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setIsEmailFocused(true)}
+                onBlur={() => setIsEmailFocused(false)}
+                editable={!submitting && !loading}
+              />
+            </View>
+
+            {/* Password Input */}
+            <View style={[styles.inputContainer, isPasswordFocused && styles.inputFocused]}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                autoComplete="password"
+                onFocus={() => setIsPasswordFocused(true)}
+                onBlur={() => setIsPasswordFocused(false)}
+                editable={!submitting && !loading}
+              />
+            </View>
+
+            {/* Error Message */}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            {/* Log In Button */}
+            <TouchableOpacity
+              style={[styles.primaryButton, (submitting || loading) && styles.buttonDisabled]}
+              onPress={handleSignIn}
+              disabled={submitting || loading}
+              activeOpacity={0.9}
+            >
+              {submitting || loading ? (
+                <ActivityIndicator color="#000000" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Log in</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Sign Up Link */}
+            <TouchableOpacity
+              style={styles.secondaryLink}
+              onPress={() => navigation.navigate('SignUp')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryLinkText}>
+                Don't have an account? <Text style={styles.secondaryLinkAccent}>Sign up</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  container: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    backgroundColor: '#000000',
   },
-  backgroundImageStyle: {
-    opacity: 0.3,
-    resizeMode: 'cover',
-    transform: [{ translateY: 110 }],
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(12, 45, 45, 0.85)',
-  },
-  keyboardView: {
+  flex: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 32,
+    paddingBottom: 24,
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 40,
   },
-  container: {
+  centerContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-  },
-  logoContainer: {
+  header: {
     alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 20,
+    marginBottom: 32,
   },
-  logo: {
-    fontSize: 48,
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#03CA59',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  logoInitial: {
+    color: '#000000',
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  appName: {
+    color: '#FFFFFF',
+    fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 2,
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif',
-      default: 'sans-serif',
-    }),
   },
-  headline: {
-    fontSize: 18,
-    fontWeight: '500',
+  subtitle: {
+    marginTop: 4,
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
     textAlign: 'center',
-    color: '#FFFFFF',
-    marginBottom: 48,
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif',
-      default: 'sans-serif',
-    }),
   },
   form: {
-    width: '100%',
+    marginBottom: 24,
+    gap: 14,
   },
   inputContainer: {
-    marginBottom: 20,
+    backgroundColor: '#050A0E',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  inputFocused: {
+    borderColor: '#03CA59',
   },
   inputLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 4,
   },
   input: {
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    color: '#FFFFFF',
+    fontSize: 15,
+    paddingVertical: 4,
+  },
+  errorText: {
+    color: '#FF4B6E',
+    fontSize: 13,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  primaryButton: {
+    backgroundColor: '#03CA59',
+    borderRadius: 999,
     paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  primaryButtonText: {
+    color: '#000000',
     fontSize: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    color: '#111827',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif',
-      default: 'sans-serif',
-    }),
-  },
-  button: {
-    backgroundColor: '#1a4d4d',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 24,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  signUpLink: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  signUpText: {
-    color: '#2563EB',
-    fontSize: 14,
+    fontWeight: '700',
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif',
-      default: 'sans-serif',
-    }),
+  secondaryLink: {
+    alignItems: 'center',
   },
-  errorText: {
-    color: '#FFB3B3',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 4,
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+  secondaryLinkText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+  },
+  secondaryLinkAccent: {
+    color: '#03CA59',
+    fontWeight: '600',
   },
   alreadySignedInText: {
     fontSize: 18,
