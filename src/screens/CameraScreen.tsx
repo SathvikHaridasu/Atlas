@@ -1,9 +1,11 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   StyleSheet,
@@ -15,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-type CameraMode = 'video' | 'photo';
 type CameraFacing = 'front' | 'back';
 type FlashMode = 'auto' | 'on' | 'off';
 type Duration = 15 | 30 | 60;
@@ -25,14 +26,14 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const [isRecording, setIsRecording] = useState(false);
-  const [mode, setMode] = useState<CameraMode>('video');
   const [duration, setDuration] = useState<Duration>(30);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [cameraFacing, setCameraFacing] = useState<CameraFacing>('back');
   const [flashMode, setFlashMode] = useState<FlashMode>('auto');
   const [activeFilterId, setActiveFilterId] = useState<string | undefined>();
-  const [lastMediaUri, setLastMediaUri] = useState<string | null>(null);
+  const [lastVideoUri, setLastVideoUri] = useState<string | null>(null);
   const [beautyEnabled, setBeautyEnabled] = useState(false);
+  const [lastTap, setLastTap] = useState<number | null>(null);
 
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const progressAnimRef = useRef(new Animated.Value(0));
@@ -84,11 +85,42 @@ export default function CameraScreen() {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
+  // Helper function to persist recording
+  const persistRecording = async (tempUri: string): Promise<string> => {
+    try {
+      const fileName = `video_${Date.now()}.mp4`;
+      const documentsDir = FileSystem.documentDirectory;
+      if (!documentsDir) {
+        throw new Error('Documents directory not available');
+      }
+      const finalUri = `${documentsDir}${fileName}`;
+      await FileSystem.moveAsync({
+        from: tempUri,
+        to: finalUri,
+      });
+      return finalUri;
+    } catch (error) {
+      console.error('Error persisting recording:', error);
+      throw error;
+    }
+  };
+
   const handleClose = () => {
     if (isRecording) {
       handleStopRecording();
     }
-    navigation.goBack();
+    navigation.navigate('Home' as never);
+  };
+
+  const handlePreviewTap = () => {
+    const now = Date.now();
+    if (lastTap && now - lastTap < 300) {
+      // Double tap detected
+      setCameraFacing((prev) => (prev === 'back' ? 'front' : 'back'));
+      setLastTap(null);
+    } else {
+      setLastTap(now);
+    }
   };
 
   const handleFlipCamera = () => {
@@ -116,45 +148,49 @@ export default function CameraScreen() {
     setDuration(dur);
   };
 
-  const handleModeToggle = () => {
-    if (isRecording) return;
-    setMode((prev) => (prev === 'video' ? 'photo' : 'video'));
-  };
-
   const handleCapture = async () => {
-    if (mode === 'photo') {
-      // Photo capture (stub)
-      console.log('Photo captured');
-      setLastMediaUri('photo://placeholder');
+    // Video recording toggle
+    if (isRecording) {
+      handleStopRecording();
     } else {
-      // Video recording toggle
-      if (isRecording) {
-        handleStopRecording();
-      } else {
-        handleStartRecording();
-      }
+      handleStartRecording();
     }
   };
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setElapsedMs(0);
+  const handleStartRecording = async () => {
+    try {
+      setIsRecording(true);
+      setElapsedMs(0);
+      // Note: Actual recording start would be handled by CameraView.recordAsync()
+      // This is a stub for the recording state - in production, you would call:
+      // const recording = await cameraRef.current.recordAsync({ maxDuration: duration });
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      Alert.alert('Error', 'Failed to start recording. Please try again.');
+      setIsRecording(false);
+    }
   };
 
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    // Stub: Save video URI
-    setLastMediaUri('video://placeholder');
-  };
-
-  const handleOpenGallery = () => {
-    // Stub handler
-    console.log('Open gallery');
-  };
-
-  const handleOpenLibrary = () => {
-    // Stub handler
-    console.log('Open library');
+  const handleStopRecording = async () => {
+    try {
+      setIsRecording(false);
+      
+      // Stub: In a real implementation, you would get the video URI from the camera
+      // Example: const { uri } = await cameraRef.current.stopRecording();
+      // For now, we'll simulate getting a temp URI
+      const tempUri = `file://temp/video_${Date.now()}.mp4`;
+      
+      // Persist the recording
+      const finalUri = await persistRecording(tempUri);
+      setLastVideoUri(finalUri);
+      
+      // Navigate to ShareToGroup screen
+      navigation.navigate('ShareToGroup' as never, { videoUri: finalUri } as never);
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      Alert.alert('Error', 'There was a problem saving your video. Please try again.');
+      setIsRecording(false);
+    }
   };
 
   const handleAddSound = () => {
@@ -189,12 +225,18 @@ export default function CameraScreen() {
   return (
     <View style={styles.container}>
       {/* Camera Preview */}
-      <CameraView
-        style={styles.camera}
-        facing={cameraFacing}
-        flash={flashMode}
-        mode={mode}
-      />
+      <TouchableOpacity
+        style={styles.cameraContainer}
+        activeOpacity={1}
+        onPress={handlePreviewTap}
+      >
+        <CameraView
+          style={styles.camera}
+          facing={cameraFacing}
+          flash={flashMode}
+          mode="video"
+        />
+      </TouchableOpacity>
 
       {/* Top Gradient Overlay */}
       <LinearGradient
@@ -204,7 +246,7 @@ export default function CameraScreen() {
       />
 
       {/* Top Bar */}
-      <SafeAreaView style={styles.topBar} edges={['top']}>
+      <View style={styles.topBar}>
         <View style={styles.topBarContent}>
           {/* Left: Close Button */}
           <TouchableOpacity style={styles.closeButton} onPress={handleClose} activeOpacity={0.8}>
@@ -318,105 +360,69 @@ export default function CameraScreen() {
           })}
         </View>
 
-        {/* Mode Selector */}
+        {/* Mode Badge - Video Only */}
         <View style={styles.modeRow}>
-          <TouchableOpacity
-            style={[
-              styles.modeChip,
-              mode === 'video' && { backgroundColor: 'rgba(3, 202, 89, 0.2)' },
-              { marginRight: 8 },
-            ]}
-            onPress={() => setMode('video')}
-            activeOpacity={0.8}
-            disabled={isRecording}
-          >
-            <Text
-              style={[
-                styles.modeText,
-                { color: mode === 'video' ? '#03CA59' : 'rgba(249, 250, 251, 0.7)' },
-              ]}
-            >
-              VIDEO
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.modeChip,
-              mode === 'photo' && { backgroundColor: 'rgba(3, 202, 89, 0.2)' },
-            ]}
-            onPress={() => setMode('photo')}
-            activeOpacity={0.8}
-            disabled={isRecording}
-          >
-            <Text
-              style={[
-                styles.modeText,
-                { color: mode === 'photo' ? '#03CA59' : 'rgba(249, 250, 251, 0.7)' },
-              ]}
-            >
-              PHOTO
-            </Text>
-          </TouchableOpacity>
+          <View style={[styles.modeChip, { backgroundColor: 'rgba(3, 202, 89, 0.2)' }]}>
+            <Text style={[styles.modeText, { color: '#03CA59' }]}>VIDEO</Text>
+          </View>
         </View>
 
         {/* Center Area: Capture Button */}
         <View style={styles.captureArea}>
           <View style={styles.captureButtonContainer}>
-            {/* Progress Ring (Video Mode Only) */}
-            {mode === 'video' && (
-              <View style={styles.progressRingContainer}>
-                <View
+            {/* Progress Ring */}
+            <View style={styles.progressRingContainer}>
+              <View
+                style={[
+                  styles.progressRingBackground,
+                  {
+                    borderColor: isRecording ? 'rgba(255, 0, 0, 0.3)' : 'rgba(3, 202, 89, 0.3)',
+                  },
+                ]}
+              />
+              {isRecording && (
+                <Animated.View
                   style={[
-                    styles.progressRingBackground,
+                    styles.progressRingFill,
                     {
-                      borderColor: isRecording ? 'rgba(255, 0, 0, 0.3)' : 'rgba(3, 202, 89, 0.3)',
+                      borderColor: '#FF0000',
+                      borderWidth: 4,
+                      width: 90,
+                      height: 90,
+                      borderRadius: 45,
+                      borderTopColor: '#FF0000',
+                      borderRightColor: progressAnimRef.current.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: ['transparent', '#FF0000', '#FF0000'],
+                      }) as any,
+                      borderBottomColor: progressAnimRef.current.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: ['transparent', 'transparent', '#FF0000'],
+                      }) as any,
+                      borderLeftColor: progressAnimRef.current.interpolate({
+                        inputRange: [0, 0.25, 0.5, 0.75, 1],
+                        outputRange: ['transparent', 'transparent', 'transparent', 'transparent', '#FF0000'],
+                      }) as any,
+                      transform: [
+                        {
+                          rotate: progressAnimRef.current.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['-90deg', '270deg'],
+                          }) as any,
+                        },
+                      ],
                     },
                   ]}
                 />
-                {isRecording && (
-                  <Animated.View
-                    style={[
-                      styles.progressRingFill,
-                      {
-                        borderColor: '#FF0000',
-                        borderWidth: 4,
-                        width: 90,
-                        height: 90,
-                        borderRadius: 45,
-                        borderTopColor: '#FF0000',
-                        borderRightColor: progressAnimRef.current.interpolate({
-                          inputRange: [0, 0.5, 1],
-                          outputRange: ['transparent', '#FF0000', '#FF0000'],
-                        }) as any,
-                        borderBottomColor: progressAnimRef.current.interpolate({
-                          inputRange: [0, 0.5, 1],
-                          outputRange: ['transparent', 'transparent', '#FF0000'],
-                        }) as any,
-                        borderLeftColor: progressAnimRef.current.interpolate({
-                          inputRange: [0, 0.25, 0.5, 0.75, 1],
-                          outputRange: ['transparent', 'transparent', 'transparent', 'transparent', '#FF0000'],
-                        }) as any,
-                        transform: [
-                          {
-                            rotate: progressAnimRef.current.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: ['-90deg', '270deg'],
-                            }) as any,
-                          },
-                        ],
-                      },
-                    ]}
-                  />
-                )}
-              </View>
-            )}
+              )}
+            </View>
 
             {/* Capture Button */}
             <TouchableOpacity
               style={[
                 styles.captureButton,
                 {
-                  backgroundColor: mode === 'photo' ? '#FFFFFF' : isRecording ? '#FF0000' : '#03CA59',
+                  backgroundColor: isRecording ? '#FF0000' : '#03CA59',
                   borderColor: '#03CA59',
                 },
               ]}
@@ -427,40 +433,28 @@ export default function CameraScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Timer Display (Video Mode Only) */}
-          {mode === 'video' && (
-            <Text style={styles.timerText}>
-              {formatTime(elapsedMs)} / {formatTime(duration * 1000)}
-            </Text>
-          )}
+          {/* Timer Display */}
+          <Text style={styles.timerText}>
+            {formatTime(elapsedMs)} / {formatTime(duration * 1000)}
+          </Text>
         </View>
 
-        {/* Bottom Row: Gallery & Library */}
+        {/* Bottom Row: Gallery Thumbnail */}
         <View style={styles.bottomRow}>
           {/* Gallery Thumbnail */}
           <TouchableOpacity
             style={styles.galleryThumbnail}
-            onPress={handleOpenGallery}
             activeOpacity={0.8}
           >
-            {lastMediaUri ? (
+            {lastVideoUri ? (
               <View style={styles.thumbnailPlaceholder}>
-                <Ionicons name="image" size={20} color="#9CA3AF" />
+                <Ionicons name="videocam" size={20} color="#9CA3AF" />
               </View>
             ) : (
               <View style={styles.thumbnailPlaceholder}>
-                <Ionicons name="images-outline" size={24} color="#9CA3AF" />
+                <Ionicons name="videocam-outline" size={24} color="#9CA3AF" />
               </View>
             )}
-          </TouchableOpacity>
-
-          {/* Library Button */}
-          <TouchableOpacity
-            style={styles.libraryButton}
-            onPress={handleOpenLibrary}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.libraryButtonText}>Library</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -472,6 +466,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  cameraContainer: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
   },
   camera: {
     flex: 1,
@@ -509,7 +508,7 @@ const styles = StyleSheet.create({
   },
   topBar: {
     position: 'absolute',
-    top: 0,
+    top: 48,
     left: 0,
     right: 0,
     zIndex: 10,
@@ -673,7 +672,6 @@ const styles = StyleSheet.create({
   },
   bottomRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   galleryThumbnail: {
@@ -689,18 +687,6 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  libraryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#03CA59',
-  },
-  libraryButtonText: {
-    color: '#03CA59',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });
 
