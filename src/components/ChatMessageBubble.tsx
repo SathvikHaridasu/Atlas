@@ -5,7 +5,6 @@ import { StyleSheet, Text, View } from 'react-native';
 const COLORS = {
   backgroundDark: '#020617', // Dark background
   bubbleOwn: '#03CA59', // Brand green for own messages
-  bubbleOwnDarker: '#02a84a', // Slightly darker green variant
   bubbleOther: '#262b35', // Dark gray for other messages
   textWhite: '#FFFFFF',
   textLightGray: '#E5E7EB',
@@ -65,7 +64,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 }) => {
   return (
     <View style={[styles.container, isOwn ? styles.containerOwn : styles.containerOther]}>
-      {/* Username above bubble (only show for others or if needed) */}
+      {/* Username above bubble (only show for other users) */}
       {!isOwn && (
         <Text style={styles.username}>{senderName}</Text>
       )}
@@ -93,10 +92,9 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 2,
-    marginHorizontal: 16,
+    marginVertical: 4,
     alignSelf: 'flex-start',
-    maxWidth: '75%',
+    maxWidth: '70%',
   },
   containerOwn: {
     alignSelf: 'flex-end',
@@ -114,7 +112,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   bubble: {
-    borderRadius: 22,
+    borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 10,
     maxWidth: '100%',

@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -29,10 +29,9 @@ import {
   Session,
   SessionDare,
   SessionMember,
-  submitDare
 } from '../../lib/sessionService';
 import { ChatMessageBubble } from '../components/ChatMessageBubble';
-import { SessionSettingsModal } from '../components/SessionSettingsModal';
+import { SessionSettingsScreen } from '../screens/SessionSettingsScreen';
 
 interface Props {
   route?: {
@@ -46,6 +45,7 @@ interface Props {
 export default function SessionLobbyScreen({ route, navigation }: Props) {
   const { user } = useAuth();
   const sessionId = route?.params?.sessionId;
+  const messagesListRef = useRef<FlatList>(null);
 
   if (!sessionId) {
     return (
@@ -62,7 +62,6 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [chatText, setChatText] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -78,6 +77,10 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
 
     const unsubscribeMessages = listenToMessages(sessionId, (updatedMessages) => {
       setMessages(updatedMessages);
+      // Auto-scroll to bottom when new message arrives
+      setTimeout(() => {
+        messagesListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     });
 
     return () => {
@@ -114,25 +117,14 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
     try {
       await sendMessage(sessionId, user.id, chatText.trim());
       setChatText('');
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        messagesListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
       setSendingMessage(false);
-    }
-  };
-
-  const handleLeaveSession = async () => {
-    if (!user || !session) return;
-
-    try {
-      await leaveSession(sessionId, user.id);
-      setSettingsModalVisible(false);
-      // Navigate back to sessions list
-      if (navigation) {
-        navigation.goBack();
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to leave session');
     }
   };
 
@@ -149,10 +141,15 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
     return `User ${message.user_id.slice(0, 8)}`;
   };
 
+  // Get session initial for avatar
+  const getSessionInitial = (name: string): string => {
+    return name.charAt(0).toUpperCase();
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#03CA59" />
       </View>
     );
   }
@@ -160,115 +157,123 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
   if (!session) {
     return (
       <View style={styles.center}>
-        <Text>Session not found</Text>
+        <Text style={styles.errorText}>Session not found</Text>
       </View>
     );
   }
 
+  const renderMessage = ({ item }: { item: Message }) => {
+    const isOwn = item.user_id === user?.id;
+    const senderName = getSenderName(item);
+    return (
+      <ChatMessageBubble
+        message={item}
+        isOwn={isOwn}
+        senderName={senderName}
+      />
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.contentWrapper}>
-            {/* Instagram-style Header: Back + Session Name + Settings */}
+            {/* Instagram-style Dark Header */}
             <View style={styles.header}>
               <TouchableOpacity
-                style={styles.backButton}
+                style={styles.headerButton}
                 onPress={() => navigation?.goBack()}
               >
-                <Ionicons name="arrow-back" size={24} color="#111827" />
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
               </TouchableOpacity>
-              <Text style={styles.title} numberOfLines={1}>
-                {session.name}
-              </Text>
+
+              <View style={styles.headerCenter}>
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarText}>
+                    {getSessionInitial(session.name)}
+                  </Text>
+                </View>
+                <Text style={styles.sessionTitle} numberOfLines={1}>
+                  {session.name}
+                </Text>
+              </View>
+
               <TouchableOpacity
-                style={styles.settingsButton}
-                onPress={() => setSettingsModalVisible(true)}
+                style={styles.headerButton}
+                onPress={() => {
+                  if (navigation) {
+                    navigation.navigate('SessionSettings', {
+                      sessionId,
+                      sessionName: session.name,
+                      sessionCode: session.code || session.join_code || '',
+                      sessionWeekStart: session.week_start || '',
+                      sessionWeekEnd: session.week_end || '',
+                    });
+                  }
+                }}
               >
-                <Ionicons name="settings-outline" size={24} color="#111827" />
+                <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
 
-            {/* Chat Section - Dark Instagram DM-style */}
-            <ScrollView
-              style={styles.chatScrollView}
-              contentContainerStyle={styles.chatScrollContent}
+            {/* Chat Section - Full-bleed Dark */}
+            <FlatList
+              ref={messagesListRef}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              renderItem={renderMessage}
+              contentContainerStyle={styles.messagesContainer}
+              style={styles.chatSection}
+              inverted={false}
               keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.chatSection}>
-                <View style={styles.messagesContainer}>
-                  {messages.map((message) => {
-                    const isOwn = message.user_id === user?.id;
-                    const senderName = getSenderName(message);
-                    return (
-                      <ChatMessageBubble
-                        key={message.id}
-                        message={message}
-                        isOwn={isOwn}
-                        senderName={senderName}
-                      />
-                    );
-                  })}
-                  {messages.length === 0 && (
-                    <Text style={styles.emptyChatText}>
-                      No messages yet. Start the conversation!
-                    </Text>
-                  )}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyChatText}>
+                    No messages yet. Start the conversation!
+                  </Text>
                 </View>
-              </View>
-            </ScrollView>
+              }
+            />
 
-            {/* Fixed Bottom Chat Input - Dark themed */}
-            <View style={styles.chatInputContainer}>
-              <View style={styles.chatInputWrapper}>
-                <TextInput
-                  style={styles.chatInput}
-                  placeholder="Message..."
-                  placeholderTextColor="#6B7280"
-                  value={chatText}
-                  onChangeText={setChatText}
-                  editable={!sendingMessage}
-                  multiline
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton,
-                    (!chatText.trim() || sendingMessage) && styles.buttonDisabled
-                  ]}
-                  onPress={handleSendMessage}
-                  disabled={sendingMessage || !chatText.trim()}
-                >
-                  {sendingMessage ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <Text style={styles.sendButtonText}>Send</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+            {/* Instagram-style Input Bar */}
+            <View style={styles.inputContainer}>
+              <TouchableOpacity style={styles.cameraButton}>
+                <Ionicons name="camera-outline" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Message..."
+                placeholderTextColor="#6B7280"
+                value={chatText}
+                onChangeText={setChatText}
+                editable={!sendingMessage}
+                multiline
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  (!chatText.trim() || sendingMessage) && styles.sendButtonDisabled,
+                ]}
+                onPress={handleSendMessage}
+                disabled={sendingMessage || !chatText.trim()}
+              >
+                {sendingMessage ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.sendButtonText}>Send</Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-
-      {/* Session Settings Modal */}
-      <SessionSettingsModal
-        visible={settingsModalVisible}
-        onClose={() => setSettingsModalVisible(false)}
-        sessionId={sessionId}
-        sessionName={session.name}
-        sessionCode={session.code || session.join_code || ''}
-        sessionWeekStart={session.week_start || ''}
-        sessionWeekEnd={session.week_end || ''}
-        onLeaveSuccess={handleLeaveSession}
-        members={members}
-        dares={dares}
-        navigation={navigation}
-      />
     </SafeAreaView>
   );
 }
@@ -276,7 +281,7 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#020617',
   },
   keyboardView: {
     flex: 1,
@@ -288,98 +293,118 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#020617',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: '#1F2937',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  backButton: {
-    padding: 4,
+  headerButton: {
+    padding: 6,
+    minWidth: 36,
   },
-  title: {
+  headerCenter: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    color: '#111827',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginHorizontal: 8,
   },
-  settingsButton: {
-    padding: 4,
+  avatarCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#03CA59',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
-  chatScrollView: {
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  sessionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
     flex: 1,
-  },
-  chatScrollContent: {
-    flexGrow: 1,
   },
   chatSection: {
     flex: 1,
-    backgroundColor: '#020617', // Dark background for chat section
-    paddingTop: 12,
-    paddingBottom: 12,
-    minHeight: '100%',
+    backgroundColor: '#020617',
   },
   messagesContainer: {
-    paddingBottom: 8,
-    paddingHorizontal: 0,
+    paddingTop: 12,
+    paddingBottom: 80,
+    paddingHorizontal: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
   },
   emptyChatText: {
     textAlign: 'center',
-    color: '#6B7280', // Muted gray text on dark background
+    color: '#6B7280',
     fontSize: 14,
-    paddingVertical: 40,
-    paddingHorizontal: 20,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#020617',
   },
-  chatInputContainer: {
-    backgroundColor: '#020617', // Dark background matching chat section
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    paddingBottom: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#1F2937', // Subtle border
+  errorText: {
+    color: '#FFFFFF',
+    fontSize: 16,
   },
-  chatInputWrapper: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1F2937', // Dark gray container for input
-    borderRadius: 24,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#374151', // Subtle border
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#050816',
+    borderTopWidth: 1,
+    borderTopColor: '#1F2937',
   },
-  chatInput: {
+  cameraButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  input: {
     flex: 1,
-    backgroundColor: 'transparent',
-    borderRadius: 20,
-    paddingHorizontal: 15,
+    backgroundColor: '#1F2937',
+    borderRadius: 24,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#FFFFFF', // White text
+    color: '#FFFFFF',
     maxHeight: 100,
+    marginRight: 8,
   },
   sendButton: {
-    backgroundColor: '#03CA59', // Brand green
+    backgroundColor: '#03CA59',
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 10,
     justifyContent: 'center',
+    alignItems: 'center',
     minHeight: 40,
-    minWidth: 60,
+    minWidth: 70,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
   },
   sendButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
   },
 });
