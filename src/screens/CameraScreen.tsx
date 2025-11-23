@@ -1,5 +1,5 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,9 +41,6 @@ export default function CameraScreen() {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const progressAnimRef = useRef(new Animated.Value(0));
   const cameraRef = useRef<CameraView>(null);
-  const recordingPromiseRef = useRef<Promise<{ uri: string }> | null>(null);
-  const isStoppingRef = useRef<boolean>(false);
-  const shouldNavigateOnCompleteRef = useRef<boolean>(true);
 
   useEffect(() => {
     if (isRecording) {
@@ -81,7 +78,10 @@ export default function CameraScreen() {
     return () => {
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
       }
+      // Reset animation on cleanup
+      progressAnimRef.current.setValue(0);
     };
   }, [isRecording, duration, handleStopRecording]);
 
@@ -97,6 +97,25 @@ export default function CameraScreen() {
       }
     };
   }, [isRecording]);
+
+  // Cleanup when screen loses focus or unmounts
+  useFocusEffect(
+    useCallback(() => {
+      // Screen is focused - camera can be active
+      return () => {
+        // Screen is losing focus or unmounting - cleanup
+        cleanupCamera();
+      };
+    }, [cleanupCamera])
+  );
+
+  // Additional cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup on component unmount
+      cleanupCamera();
+    };
+  }, [cleanupCamera]);
 
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -175,11 +194,41 @@ export default function CameraScreen() {
     }
   }, [cameraRef, isRecording]);
 
+  // Cleanup function to stop camera and clear resources
+  const cleanupCamera = useCallback(() => {
+    // Stop recording if active
+    if (isRecording) {
+      setIsRecording(false);
+      
+      // Stop the recording timer
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      
+      // Reset animations
+      setElapsedMs(0);
+      progressAnimRef.current.setValue(0);
+    }
+    
+    // Clear any timers
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  }, [isRecording]);
+
   const handleClose = async () => {
+    // Stop recording and cleanup
     if (isRecording) {
       await stopRecordingWithoutNavigation();
     }
-    navigation.navigate('MainTabs', { screen: 'Home' });
+    
+    // Cleanup camera resources
+    cleanupCamera();
+    
+    // Navigate back to unmount the screen properly
+    navigation.goBack();
   };
 
   const handlePreviewTap = () => {
