@@ -78,8 +78,8 @@ export default function SideDrawerContent(props: DrawerContentComponentProps) {
       isActive: currentRoute === 'MyGoals',
     },
     {
-      label: 'Side Missions',
-      icon: 'target-outline',
+      label: 'Missions',
+      icon: 'rocket-outline',
       drawerRoute: 'SideMissions',
       isActive: currentRoute === 'SideMissions',
     },

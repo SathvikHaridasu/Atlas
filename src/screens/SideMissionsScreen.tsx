@@ -304,7 +304,7 @@ export default function SideMissionsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>Side Missions</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Missions</Text>
         <Text style={[styles.subtitle, { color: theme.mutedText }]}>
           Optional challenges for sustainability & exploration.
         </Text>

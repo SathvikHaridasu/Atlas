@@ -333,9 +333,9 @@ function MainDrawer() {
         name="SideMissions"
         component={SideMissionsScreen}
         options={{
-          drawerLabel: 'Side Missions',
+          drawerLabel: 'Missions',
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="target-outline" size={size} color={color} />
+            <Ionicons name="rocket-outline" size={size} color={color} />
           ),
           headerShown: false,
         }}

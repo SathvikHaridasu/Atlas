@@ -558,18 +558,18 @@ const RunScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Side Missions Shortcut */}
+      {/* Missions Shortcut */}
       <View style={styles.missionsShortcutContainer}>
         <TouchableOpacity
           style={[styles.missionsShortcutButton, { borderColor: theme.accent }]}
           onPress={() => {
-            // Navigate to Side Missions screen
+            // Navigate to Missions screen
             navigation.navigate('SideMissions');
           }}
           activeOpacity={0.8}
         >
           <Ionicons name="flag-outline" size={16} color={theme.accent} style={styles.missionsShortcutIcon} />
-          <Text style={[styles.missionsShortcutText, { color: theme.accent }]}>Side Missions</Text>
+          <Text style={[styles.missionsShortcutText, { color: theme.accent }]}>Missions</Text>
         </TouchableOpacity>
       </View>
 
@@ -828,11 +828,11 @@ const styles = StyleSheet.create({
     borderRightColor: "transparent",
     borderTopColor: "#03CA59",
   },
-  // Side Missions shortcut
+  // Missions shortcut
   missionsShortcutContainer: {
     position: "absolute",
     left: 16,
-    bottom: 250, // Position above stats card (stats card is at bottom: 130, so this is above it)
+    bottom: 280, // Position above stats card (increased from 250 to move button higher)
     zIndex: 10,
   },
   missionsShortcutButton: {
