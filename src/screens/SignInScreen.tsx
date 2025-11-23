@@ -1,4 +1,3 @@
-import { Feather, FontAwesome, Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -230,38 +229,6 @@ export default function SignInScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
 
-          {/* Social login placeholders */}
-          <View style={styles.socialSection}>
-            <View style={styles.socialButtonsRow}>
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => console.log('Google placeholder')}
-                activeOpacity={0.85}
-              >
-                <FontAwesome name="google" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => console.log('GitHub placeholder')}
-                activeOpacity={0.85}
-              >
-                <Feather name="github" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => console.log('iCloud placeholder')}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="cloud-outline" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.socialDividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Or continue with</Text>
-              <View style={styles.dividerLine} />
-            </View>
-          </View>
-
           {/* Sign Up Link */}
           <TouchableOpacity
             style={styles.secondaryLink}
@@ -336,16 +303,16 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 12,
   },
   logoImage: {
-    width: 100,
-    height: 100,
-    marginBottom: 12,
+    width: 280,
+    height: 280,
+    marginBottom: 10,
   },
   appName: {
     color: '#FFFFFF',
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
   },
   subtitle: {
@@ -419,40 +386,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
-  },
-  socialSection: {
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  socialButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  socialDividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  dividerText: {
-    marginHorizontal: 8,
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
-  },
-  socialButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: '#050A0E',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 4,
   },
   reviewsSection: {
     marginTop: 18,
