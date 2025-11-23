@@ -38,6 +38,9 @@ import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import SettingsNavigator from './SettingsNavigator';
+import { SwipeableTabWrapper } from '../components/navigation/SwipeableTabWrapper';
+import FadeInOnFocus from '../components/animation/FadeInOnFocus';
+import { triggerTabChangeHaptic } from '../utils/haptics';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -97,8 +100,24 @@ const drawerLightTheme = {
   background: '#FFFFFF',
 };
 
+// Tab route names in order (for swipe navigation)
+const TAB_ROUTE_NAMES = ['Home', 'Run', 'Chats', 'DareFeed'] as const;
+
 // Main tabs navigator (shown when user is logged in)
 function MainTabs() {
+  // Track initial mount to skip haptics on app load
+  const isInitialMount = React.useRef(true);
+  
+  const tabListeners = {
+    focus: () => {
+      // Skip haptics on initial mount (when app first loads)
+      if (isInitialMount.current) {
+        isInitialMount.current = false;
+        return;
+      }
+      triggerTabChangeHaptic();
+    },
+  };
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -129,33 +148,73 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={(props) => (
+          <SwipeableTabWrapper
+            routeNames={TAB_ROUTE_NAMES as string[]}
+            currentRouteName="Home"
+          >
+            <FadeInOnFocus>
+              <HomeScreen {...props} />
+            </FadeInOnFocus>
+          </SwipeableTabWrapper>
+        )}
         options={{
           title: 'Home',
           headerShown: false,
         }}
+        listeners={tabListeners}
       />
       <Tab.Screen
         name="Run"
-        component={RunScreen}
+        component={(props) => (
+          <SwipeableTabWrapper
+            routeNames={TAB_ROUTE_NAMES as string[]}
+            currentRouteName="Run"
+          >
+            <FadeInOnFocus>
+              <RunScreen {...props} />
+            </FadeInOnFocus>
+          </SwipeableTabWrapper>
+        )}
         options={{
           title: 'Run',
         }}
+        listeners={tabListeners}
       />
       <Tab.Screen
         name="Chats"
-        component={SessionsHomeScreen}
+        component={(props) => (
+          <SwipeableTabWrapper
+            routeNames={TAB_ROUTE_NAMES as string[]}
+            currentRouteName="Chats"
+          >
+            <FadeInOnFocus>
+              <SessionsHomeScreen {...props} />
+            </FadeInOnFocus>
+          </SwipeableTabWrapper>
+        )}
         options={{
           title: 'Chats',
         }}
+        listeners={tabListeners}
       />
       <Tab.Screen
         name="DareFeed"
-        component={DareFeedScreen}
+        component={(props) => (
+          <SwipeableTabWrapper
+            routeNames={TAB_ROUTE_NAMES as string[]}
+            currentRouteName="DareFeed"
+          >
+            <FadeInOnFocus>
+              <DareFeedScreen {...props} />
+            </FadeInOnFocus>
+          </SwipeableTabWrapper>
+        )}
         options={{
           title: 'Dare Feed',
           headerShown: false,
         }}
+        listeners={tabListeners}
       />
     </Tab.Navigator>
   );
