@@ -26,6 +26,8 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import FeedScreen from '../screens/FeedScreen';
 import HomeScreen from '../screens/HomeScreen';
+import MyCapturesScreen from '../screens/MyCapturesScreen';
+import MyGoalsScreen from '../screens/MyGoalsScreen';
 import VideoCatalogScreen from '../screens/VideoCatalogScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
@@ -63,6 +65,8 @@ export type DrawerParamList = {
   Settings: undefined;
   Profile: undefined;
   Favorites: undefined;
+  MyCaptures: undefined;
+  MyGoals: undefined;
 };
 
 // Define the type for root stack navigation parameters
@@ -282,6 +286,28 @@ function MainDrawer() {
           drawerIcon: ({ color, size }) => (
             <Ionicons name="heart-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Drawer.Screen
+        name="MyCaptures"
+        component={MyCapturesScreen}
+        options={{
+          drawerLabel: 'My Captures',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="albums-outline" size={size} color={color} />
+          ),
+          headerShown: false,
+        }}
+      />
+      <Drawer.Screen
+        name="MyGoals"
+        component={MyGoalsScreen}
+        options={{
+          drawerLabel: 'My Goals',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="flag-outline" size={size} color={color} />
+          ),
+          headerShown: false,
         }}
       />
     </Drawer.Navigator>

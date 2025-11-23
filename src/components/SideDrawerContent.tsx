@@ -66,6 +66,18 @@ export default function SideDrawerContent(props: DrawerContentComponentProps) {
       stackRoute: 'Camera',
     },
     {
+      label: 'My Captures',
+      icon: 'albums-outline',
+      drawerRoute: 'MyCaptures',
+      isActive: currentRoute === 'MyCaptures',
+    },
+    {
+      label: 'My Goals',
+      icon: 'flag-outline',
+      drawerRoute: 'MyGoals',
+      isActive: currentRoute === 'MyGoals',
+    },
+    {
       label: 'Favorites',
       icon: 'heart-outline',
       drawerRoute: 'Favorites',
@@ -92,27 +104,32 @@ export default function SideDrawerContent(props: DrawerContentComponentProps) {
   ];
 
   return (
-    <DrawerContentScrollView
-      {...props}
-      contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Profile Header */}
-      <View style={styles.profileSection}>
-        <View style={[styles.avatarContainer, { borderColor: theme.accent }]}>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: theme.accent }]}>
-              <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+    <View style={styles.drawerContainer}>
+      <View style={styles.drawerCard}>
+        <DrawerContentScrollView
+          {...props}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Profile Header */}
+          <View style={styles.profileSection}>
+            <View style={[styles.avatarContainer, { borderColor: theme.accent }]}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { backgroundColor: theme.accent }]}>
+                  <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
-        <Text style={[styles.userName, { color: theme.text }]}>{displayName}</Text>
-      </View>
+            <Text style={[styles.userName, { color: theme.text }]}>{displayName}</Text>
+          </View>
 
-      {/* Menu Items */}
-      <View style={styles.menuSection}>
+          {/* Divider */}
+          <View style={styles.menuDivider} />
+
+          {/* Menu Items */}
+          <View style={styles.menuSection}>
         {menuItems.map((item, index) => {
           const isActive = item.isActive || false;
           const iconColor = isActive ? theme.accent : theme.mutedText;
@@ -139,19 +156,38 @@ export default function SideDrawerContent(props: DrawerContentComponentProps) {
           );
         })}
       </View>
-    </DrawerContentScrollView>
+        </DrawerContentScrollView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  drawerContainer: {
     flex: 1,
-    paddingTop: 20,
+    backgroundColor: 'transparent',
+  },
+  drawerCard: {
+    flex: 1,
+    backgroundColor: '#050608',
+    paddingHorizontal: 20,
+    paddingTop: 32,
+    paddingBottom: 24,
+    borderTopRightRadius: 28,
+    borderBottomRightRadius: 28,
+    shadowColor: '#000',
+    shadowOpacity: 0.6,
+    shadowRadius: 18,
+    shadowOffset: { width: 8, height: 0 },
+    elevation: 16,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   profileSection: {
     alignItems: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 0,
   },
   avatarContainer: {
     width: 80,
@@ -180,15 +216,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
   },
+  menuDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginVertical: 24,
+    marginHorizontal: 0,
+  },
   menuSection: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 0,
+    paddingTop: 0,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 12,
   },
   menuLabel: {
