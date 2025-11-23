@@ -13,12 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useAuth } from '../../contexts/AuthContext';
 import { PillButton } from '../components/ui/PillButton';
-import { NeonCard } from '../components/ui/NeonCard';
 import {
   createSession,
   getUserSessions,
@@ -229,36 +227,44 @@ export default function SessionsHomeScreen({ navigation }: any) {
         renderRightActions={() => renderRightActions(item)}
         rightThreshold={40}
       >
-        <NeonCard
+        <TouchableOpacity
+          style={styles.chatItem}
           onPress={() => handleSessionPress(item)}
-          style={styles.chatCard}
+          activeOpacity={0.8}
         >
-          <View style={styles.chatCardInner}>
-            {/* Left accent dot */}
-            <View style={styles.accentDot} />
-            
-            {/* Left avatar */}
-            <View style={styles.avatarContainer}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} contentFit="cover" />
-              ) : (
-                <View style={styles.avatarFallback}>
-                  <Text style={styles.avatarInitial}>{initial}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Middle text */}
-            <View style={styles.chatTextContainer}>
-              <Text style={styles.chatName}>{item.name}</Text>
-              <Text style={styles.chatCode}>Join Code: {item.code || item.join_code}</Text>
-              {dateRange && <Text style={styles.chatDates}>{dateRange}</Text>}
-            </View>
-
-            {/* Right arrow */}
-            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+          {/* Avatar + status dot */}
+          <View style={styles.avatarWrapper}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarCircle} contentFit="cover" />
+            ) : (
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarInitial}>{initial}</Text>
+              </View>
+            )}
+            {/* Optional: status dot for active chats */}
+            {/* <View style={styles.statusDot} /> */}
           </View>
-        </NeonCard>
+
+          {/* Text content */}
+          <View style={styles.chatTextContainer}>
+            <Text style={styles.chatTitle} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.chatSubtitle} numberOfLines={1}>
+              Join Code: {item.code || item.join_code}
+            </Text>
+            {dateRange && (
+              <Text style={styles.chatMeta} numberOfLines={1}>
+                {dateRange}
+              </Text>
+            )}
+          </View>
+
+          {/* Right chevron */}
+          <View style={styles.chatRight}>
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
+          </View>
+        </TouchableOpacity>
       </Swipeable>
     );
   };
@@ -280,7 +286,15 @@ export default function SessionsHomeScreen({ navigation }: any) {
       <StatusBar barStyle="light-content" />
 
       <View style={styles.container}>
-        <View style={styles.buttonRow}>
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft} />
+          <Text style={styles.headerTitle}>Chats</Text>
+          <View style={styles.headerRight} />
+        </View>
+
+        {/* Create/Join buttons */}
+        <View style={styles.actionRow}>
           <PillButton
             label="Create Chat"
             onPress={handleCreateSession}
@@ -295,11 +309,13 @@ export default function SessionsHomeScreen({ navigation }: any) {
           />
         </View>
 
+        {/* Chats list */}
         <FlatList
           data={sessions}
           keyExtractor={(item) => item.id}
           renderItem={renderChatItem}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No chats yet. Create or join one!</Text>
@@ -426,64 +442,101 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
   },
-  buttonRow: {
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 10,
+  },
+  headerLeft: {
+    width: 24,
+  },
+  headerRight: {
+    width: 24,
+    alignItems: 'flex-end',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginTop: 12,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 10,
   },
   buttonWrapper: {
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 12,
     paddingBottom: 24,
   },
-  chatCard: {
-    marginBottom: 12,
-    width: '100%',
-    alignSelf: 'stretch',
-  },
-  chatCardInner: {
+  chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: -18,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: '#050A0E',
+    marginBottom: 6,
   },
-  accentDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(3, 202, 89, 0.4)',
-    marginRight: 12,
-  },
-  avatarContainer: {
-    marginRight: 12,
-  },
-  avatarImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#111827',
-  },
-  avatarFallback: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#03CA59',
+  avatarWrapper: {
+    marginRight: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#03CA59',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   avatarInitial: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 18,
+  },
+  statusDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#03CA59',
+    borderWidth: 2,
+    borderColor: '#000000',
   },
   chatTextContainer: {
     flex: 1,
+  },
+  chatTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  chatSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    marginBottom: 1,
+  },
+  chatMeta: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+  },
+  chatRight: {
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // Legacy session styles (kept to avoid changing anything else, even if unused now)
   sessionItem: {
@@ -526,22 +579,6 @@ const styles = StyleSheet.create({
   },
   sessionInfo: {
     flex: 1,
-  },
-  chatName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  chatCode: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 4,
-  },
-  chatDates: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.5)',
-    marginTop: 4,
   },
   swipeDelete: {
     backgroundColor: '#DC2626',
