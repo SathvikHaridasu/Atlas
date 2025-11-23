@@ -3,6 +3,7 @@
 // expo install react-native-screens react-native-safe-area-context
 // npm install @react-navigation/native-stack @react-navigation/bottom-tabs
 
+import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -41,17 +42,39 @@ const Stack = createNativeStackNavigator();
 // Main tabs navigator (shown when user is logged in)
 function MainTabs() {
   return (
-    <Tab.Navigator>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap;
+
+          if (route.name === 'Home') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Run') {
+            iconName = focused ? 'walk' : 'walk-outline';
+          } else if (route.name === 'Sessions') {
+            iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Settings') {
+            iconName = focused ? 'settings' : 'settings-outline';
+          } else {
+            iconName = 'help-outline';
+          }
+
+          return <Ionicons name={iconName} size={24} color={color} />;
+        },
+        tabBarActiveTintColor: '#03CA59',
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginBottom: 4,
+        },
+      })}
+    >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{
           title: 'Home',
           headerShown: false,
-          // TODO: Add icon using @expo/vector-icons/Ionicons
-          // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="home" size={size} color={color} />
-          // ),
         }}
       />
       <Tab.Screen
@@ -59,10 +82,6 @@ function MainTabs() {
         component={RunScreen}
         options={{
           title: 'Run',
-          // TODO: Add icon using @expo/vector-icons/Ionicons
-          // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="fitness" size={size} color={color} />
-          // ),
         }}
       />
       <Tab.Screen
@@ -70,10 +89,6 @@ function MainTabs() {
         component={SessionsHomeScreen}
         options={{
           title: 'Sessions',
-          // TODO: Add icon using @expo/vector-icons/Ionicons
-          // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="people" size={size} color={color} />
-          // ),
         }}
       />
       <Tab.Screen
@@ -82,10 +97,6 @@ function MainTabs() {
         options={{
           title: 'Settings',
           headerShown: false,
-          // TODO: Add icon using @expo/vector-icons/Ionicons
-          // tabBarIcon: ({ color, size }) => (
-          //   <Ionicons name="settings" size={size} color={color} />
-          // ),
         }}
       />
     </Tab.Navigator>
@@ -117,7 +128,14 @@ export default function RootNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#020202' : '#FFFFFF' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: isDark ? '#020202' : '#FFFFFF',
+        }}
+      >
         <ActivityIndicator size="large" color="#03CA59" />
       </View>
     );
@@ -153,4 +171,3 @@ export default function RootNavigator() {
     </NavigationContainer>
   );
 }
-
