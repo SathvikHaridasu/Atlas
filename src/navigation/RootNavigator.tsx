@@ -39,7 +39,7 @@ export type RootTabParamList = {
   Home: undefined;
   Run: undefined;
   Chats: undefined;
-  Settings: undefined;
+  DareFeed: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -59,8 +59,8 @@ function MainTabs() {
             iconName = focused ? 'walk' : 'walk-outline';
           } else if (route.name === 'Chats') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-          } else if (route.name === 'Settings') {
-            iconName = focused ? 'settings' : 'settings-outline';
+          } else if (route.name === 'DareFeed') {
+            iconName = focused ? 'tv' : 'tv-outline';
           } else {
             iconName = 'help-outline';
           }
@@ -98,10 +98,10 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Settings"
-        component={SettingsNavigator}
+        name="DareFeed"
+        component={DareFeedScreen}
         options={{
-          title: 'Settings',
+          title: 'Dare Feed',
           headerShown: false,
         }}
       />
