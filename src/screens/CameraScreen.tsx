@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SaveVideoButton from '../components/SaveVideoButton';
+import VideoUploadModal from '../components/VideoUploadModal';
 import { useFeed } from '../contexts/FeedContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { useSaveVideo } from '../hooks/useSaveVideo';
@@ -393,44 +394,20 @@ export default function CameraScreen() {
     console.log('Add sound');
   };
 
-  const handlePostToFeed = () => {
-    if (!recordedVideoUri) {
-      Alert.alert('Error', 'No video to post');
-      setShowPostModal(false);
-      return;
-    }
-
-    try {
-      // Create new feed post
-      const newPost: FeedPost = {
-        id: `post_${Date.now()}`,
-        type: 'video',
-        videoUri: recordedVideoUri,
-        createdAt: new Date(),
-        durationSeconds: recordedDuration,
-      };
-
-      // Add to feed
-      addPost(newPost);
-
-      // Close modal
-      setShowPostModal(false);
-      setRecordedVideoUri(null);
-      setRecordedDuration(0);
-
-      // Navigate to Feed screen
-      navigation.navigate('Feed' as never);
-    } catch (error) {
-      console.error('Error posting to feed:', error);
-      Alert.alert('Error', 'Failed to post to feed. Please try again.');
-      setShowPostModal(false);
-    }
+  const handleUploadComplete = () => {
+    // Reset state after successful upload
+    setRecordedVideoUri(null);
+    setRecordedDuration(0);
+    setLastVideoUri(null);
+    // Optionally navigate to video catalog or stay on camera
+    // navigation.navigate('VideoCatalog' as never);
   };
 
   const handleDiscard = () => {
-    setShowPostModal(false);
+    // Reset state when discarding
     setRecordedVideoUri(null);
     setRecordedDuration(0);
+    setLastVideoUri(null);
     // Stay on camera screen, ready to record again
   };
 
@@ -704,44 +681,15 @@ export default function CameraScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Post Recording Modal */}
-      {showPostModal && recordedVideoUri && (
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: 'rgba(3, 202, 89, 0.25)' }]}>
-            {/* Video Preview */}
-            <View style={[styles.modalVideoPreview, { backgroundColor: theme.background }]}>
-              <Ionicons name="videocam" size={32} color={theme.accent} />
-              <Text style={[styles.modalVideoLabel, { color: theme.mutedText }]}>Video recorded</Text>
-              {recordedDuration > 0 && (
-                <Text style={[styles.modalDuration, { color: theme.mutedText }]}>
-                  {formatTime(recordedDuration * 1000)}
-                </Text>
-              )}
-            </View>
-
-            {/* Modal Content */}
-            <Text style={[styles.modalTitle, { color: theme.text }]}>Post this run to your feed?</Text>
-
-            {/* Buttons */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButtonPrimary, { backgroundColor: theme.accent }]}
-                onPress={handlePostToFeed}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.modalButtonPrimaryText, { color: '#020617' }]}>Post on feed</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButtonSecondary, { borderColor: 'rgba(148, 163, 184, 0.6)' }]}
-                onPress={handleDiscard}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.modalButtonSecondaryText, { color: theme.mutedText }]}>Discard</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
+      {/* Video Upload Modal */}
+      <VideoUploadModal
+        visible={showPostModal}
+        videoUri={recordedVideoUri}
+        videoDuration={recordedDuration}
+        onClose={() => setShowPostModal(false)}
+        onUploadComplete={handleUploadComplete}
+        onDiscard={handleDiscard}
+      />
       </View>
     </SafeAreaView>
   );
@@ -983,80 +931,6 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  modalCard: {
-    width: '85%',
-    maxWidth: 400,
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  modalVideoPreview: {
-    width: '100%',
-    height: 120,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    position: 'relative',
-  },
-  modalVideoLabel: {
-    marginTop: 8,
-    fontSize: 14,
-  },
-  modalDuration: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    fontSize: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  modalButtons: {
-    width: '100%',
-  },
-  modalButtonPrimary: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 999,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  modalButtonPrimaryText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  modalButtonSecondary: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 999,
-    alignItems: 'center',
-    borderWidth: 1,
-    backgroundColor: 'transparent',
-  },
-  modalButtonSecondaryText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 
