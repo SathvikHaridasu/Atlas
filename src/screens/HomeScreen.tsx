@@ -269,9 +269,9 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <View style={styles.actionIcon}>
-              <MaterialIcons name="terrain" size={24} color="#03CA59" />
+              <Ionicons name="flag-outline" size={24} color="#03CA59" />
             </View>
-            <Text style={styles.actionLabel}>Challenges</Text>
+            <Text style={styles.actionLabel}>Goals</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
