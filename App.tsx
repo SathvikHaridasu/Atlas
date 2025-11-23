@@ -2,6 +2,7 @@ import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './contexts/AuthContext';
+import { FeedProvider } from './src/contexts/FeedContext';
 import { MapStateProvider } from './src/contexts/MapStateContext';
 import { RunStatsProvider } from './src/contexts/RunStatsContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
@@ -14,9 +15,11 @@ export default function App() {
         <ThemeProvider>
           <AuthProvider>
             <RunStatsProvider>
-              <MapStateProvider>
-                <RootNavigator />
-              </MapStateProvider>
+              <FeedProvider>
+                <MapStateProvider>
+                  <RootNavigator />
+                </MapStateProvider>
+              </FeedProvider>
             </RunStatsProvider>
           </AuthProvider>
         </ThemeProvider>

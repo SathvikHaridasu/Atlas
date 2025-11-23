@@ -18,7 +18,7 @@ import CameraScreen from '../screens/CameraScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import ChatScreen from '../screens/ChatScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
-import DareFeedScreen from '../screens/DareFeedScreen';
+import FeedScreen from '../screens/FeedScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
@@ -29,6 +29,7 @@ import SessionSettingsScreen from '../screens/SessionSettingsScreen';
 import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import SettingsNavigator from './SettingsNavigator';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -156,6 +157,16 @@ export default function RootNavigator() {
             component={CameraScreen}
             options={{
               headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="Feed"
+            component={FeedScreen}
+            options={{
+              headerShown: true,
+              title: 'Feed',
+              headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
+              headerTintColor: isDark ? '#F9FAFB' : '#111111',
             }}
           />
           <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
