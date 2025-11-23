@@ -47,6 +47,27 @@ export type RootTabParamList = {
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator();
 
+// Define the type for root stack navigation parameters
+export type RootStackParamList = {
+  MainTabs: undefined;
+  Camera: { sessionId?: string }; // sessionId is optional since camera can be used from other places too
+  CreateSession: undefined;
+  JoinSession: undefined;
+  SessionLobby: { sessionId: string; sessionName?: string };
+  SessionLeaderboard: { sessionId: string; sessionName?: string };
+  SessionSettings: {
+    sessionId: string;
+    sessionName: string;
+    sessionCode: string;
+    sessionWeekStart?: string;
+    sessionWeekEnd?: string;
+  };
+  Challenges: undefined;
+  MasterMap: undefined;
+  Chat: undefined;
+  Leaderboard: undefined;
+};
+
 // Main tabs navigator (shown when user is logged in)
 function MainTabs() {
   return (

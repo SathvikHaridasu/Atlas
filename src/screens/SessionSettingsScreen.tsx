@@ -11,9 +11,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../contexts/AuthContext';
 import { leaveSession as leaveSessionService, getSessionMembers, SessionMember } from '../../lib/sessionService';
 import { copyToClipboard } from '../../lib/clipboard';
+import type { RootStackParamList } from '../../navigation/RootNavigator';
 
 interface Props {
   route?: {
@@ -28,8 +31,11 @@ interface Props {
   navigation?: any;
 }
 
-export default function SessionSettingsScreen({ route, navigation }: Props) {
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+export default function SessionSettingsScreen({ route, navigation: routeNavigation }: Props) {
   const { user } = useAuth();
+  const navigation = useNavigation<NavigationProp>();
   const sessionId = route?.params?.sessionId;
   const sessionName = route?.params?.sessionName || 'Session';
   const sessionCode = route?.params?.sessionCode || '';
@@ -63,7 +69,7 @@ export default function SessionSettingsScreen({ route, navigation }: Props) {
   };
 
   const handleViewLeaderboard = () => {
-    if (navigation) {
+    if (sessionId) {
       navigation.navigate('SessionLeaderboard', {
         sessionId,
         sessionName,
@@ -101,9 +107,9 @@ export default function SessionSettingsScreen({ route, navigation }: Props) {
             setLeaving(true);
             try {
               await leaveSessionService(sessionId, user.id);
-              if (navigation) {
-                navigation.goBack(); // Go back to chat screen
-                navigation.goBack(); // Then go back to sessions list
+              if (routeNavigation) {
+                routeNavigation.goBack(); // Go back to chat screen
+                routeNavigation.goBack(); // Then go back to sessions list
               }
             } catch (error: any) {
               console.error('[LEAVE SESSION] error', error);
@@ -121,13 +127,22 @@ export default function SessionSettingsScreen({ route, navigation }: Props) {
     return name.charAt(0).toUpperCase();
   };
 
+  // Navigate to in-app CameraScreen for uploading dares
+  const handleUploadDare = () => {
+    if (!sessionId) {
+      Alert.alert('Error', 'Session ID is required to upload a dare.');
+      return;
+    }
+    navigation.navigate('Camera', { sessionId });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Instagram-style Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation?.goBack()}
+          onPress={() => routeNavigation?.goBack()}
         >
           <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
@@ -181,6 +196,18 @@ export default function SessionSettingsScreen({ route, navigation }: Props) {
           )}
 
           <View style={styles.divider} />
+
+          {/* Upload Dare */}
+          <TouchableOpacity
+            style={styles.settingsRow}
+            onPress={handleUploadDare}
+          >
+            <View style={styles.settingsRowLeft}>
+              <Ionicons name="camera-outline" size={24} color="#FFFFFF" />
+              <Text style={styles.settingsRowTitle}>Upload Dare</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
 
           {/* View Leaderboard */}
           <TouchableOpacity
