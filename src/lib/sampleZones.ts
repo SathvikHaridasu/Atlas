@@ -1,6 +1,6 @@
 import type { LatLng } from "./territoryHelper";
 
-export type GroupId = "LHSS" | "WCI" | "ME";
+export type GroupId = "LHSS" | "WCI" | "KCI" | "ME";
 
 export interface GroupZone {
   id: string;
@@ -64,6 +64,31 @@ export const SAMPLE_ZONES: GroupZone[] = [
       { latitude: 43.452, longitude: -80.520 },
       { latitude: 43.445, longitude: -80.525 },
       { latitude: 43.445, longitude: -80.540 },
+    ],
+  },
+  {
+    id: "kci-east-1",
+    group: "KCI",
+    name: "East Kitchener Zone",
+    coordinates: [
+      { latitude: 43.4575, longitude: -80.5165 },
+      { latitude: 43.4620, longitude: -80.5105 },
+      { latitude: 43.4660, longitude: -80.5120 },
+      { latitude: 43.4680, longitude: -80.5185 },
+      { latitude: 43.4650, longitude: -80.5240 },
+      { latitude: 43.4595, longitude: -80.5235 },
+    ],
+  },
+  {
+    id: "kci-southeast-1",
+    group: "KCI",
+    name: "Southeast Kitchener Zone",
+    coordinates: [
+      { latitude: 43.453, longitude: -80.515 },
+      { latitude: 43.456, longitude: -80.508 },
+      { latitude: 43.450, longitude: -80.505 },
+      { latitude: 43.447, longitude: -80.512 },
+      { latitude: 43.449, longitude: -80.518 },
     ],
   },
   {

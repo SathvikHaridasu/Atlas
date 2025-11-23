@@ -1,6 +1,7 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View, Animated } from "react-native";
@@ -12,6 +13,7 @@ import { useRunStats } from "../contexts/RunStatsContext";
 import { useAppTheme } from "../contexts/ThemeContext";
 import { NeonCard } from "../components/ui/NeonCard";
 import { usePressScale } from "../hooks/usePressScale";
+import type { RootStackParamList } from "../navigation/RootNavigator";
 import {
     captureTerritoryForRun,
     fetchTerritoriesForRegion,
@@ -77,12 +79,14 @@ const PlayPauseButton: React.FC<{
   );
 };
 
+type RunScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 const RunScreen: React.FC = () => {
   const { updateStats } = useRunStats();
   const { theme } = useAppTheme();
   const { session, profile } = useAuth();
   const { masterRegion } = useMapState();
-  const navigation = useNavigation();
+  const navigation = useNavigation<RunScreenNavigationProp>();
 
   // Get avatar URL from profile or use placeholder
   const avatarUrl =
@@ -103,7 +107,7 @@ const RunScreen: React.FC = () => {
   const isRunning = runStatus === "running";
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [totalDistanceMeters, setTotalDistanceMeters] = useState(0);
-  const [averagePace, setAveragePace] = useState<string>("-");
+  const [avgSplitPerKm, setAvgSplitPerKm] = useState<string>("-");
   const [points, setPoints] = useState(0);
   const [isPlanningRoute, setIsPlanningRoute] = useState(false);
   const [routePoints, setRoutePoints] = useState<LatLng[]>([]);
@@ -188,22 +192,19 @@ const RunScreen: React.FC = () => {
     };
   }, [runStatus]);
 
-  // Pace calculation effect
+  // Split average calculation effect (minutes per km, 1 decimal place)
   useEffect(() => {
     const distanceKm = totalDistanceMeters / 1000;
 
     if (distanceKm <= 0 || elapsedSeconds <= 0) {
-      setAveragePace("-");
+      setAvgSplitPerKm("-");
       return;
     }
 
-    const secPerKm = elapsedSeconds / distanceKm;
-    const paceMin = Math.floor(secPerKm / 60);
-    const paceSec = Math.round(secPerKm % 60);
-
-    setAveragePace(
-      `${String(paceMin).padStart(2, "0")}:${String(paceSec).padStart(2, "0")}`
-    );
+    // Calculate minutes per km: (totalElapsedSeconds / 60) / distanceKm
+    const paceMinutes = (elapsedSeconds / 60) / distanceKm;
+    const rounded = Math.round(paceMinutes * 10) / 10; // Round to 1 decimal place
+    setAvgSplitPerKm(rounded.toFixed(1));
   }, [totalDistanceMeters, elapsedSeconds]);
 
   useEffect(() => {
@@ -341,13 +342,36 @@ const RunScreen: React.FC = () => {
     });
   }, [points, totalDistanceMeters, elapsedSeconds, updateStats]);
 
+  // Track when we navigated to SaveActivityScreen
+  const saveScreenNavigateTimeRef = useRef<number | null>(null);
+
   // Animate to masterRegion when screen is focused
   useFocusEffect(
     useCallback(() => {
       if (masterRegion && mapRef.current) {
         mapRef.current.animateToRegion(masterRegion, 500);
       }
-    }, [masterRegion])
+      
+      // If we navigated to SaveActivityScreen more than 2 seconds ago and run is paused,
+      // assume user saved and navigated away, then came back - reset the run
+      if (saveScreenNavigateTimeRef.current && runStatus === "paused") {
+        const timeSinceNavigate = Date.now() - saveScreenNavigateTimeRef.current;
+        // If more than 2 seconds passed, user likely saved and navigated away
+        if (timeSinceNavigate > 2000) {
+          setRunStatus("idle");
+          setElapsedSeconds(0);
+          setTotalDistanceMeters(0);
+          setAvgSplitPerKm("-");
+          setPathCoords([]);
+          previousPositionRef.current = null;
+          pointsDistanceRef.current = 0;
+          saveScreenNavigateTimeRef.current = null;
+        } else {
+          // User likely discarded - keep run paused so they can resume
+          saveScreenNavigateTimeRef.current = null;
+        }
+      }
+    }, [masterRegion, runStatus])
   );
 
   if (hasPermission === null || !region) {
@@ -363,8 +387,13 @@ const RunScreen: React.FC = () => {
       if (prev === "idle" || prev === "paused") {
         // starting or resuming
         if (prev === "idle") {
-          // Starting a new run – clear previous path
+          // Starting a new run – reset everything
           setPathCoords([]);
+          setElapsedSeconds(0);
+          setTotalDistanceMeters(0);
+          setAvgSplitPerKm("-");
+          setPoints(0);
+          pointsDistanceRef.current = 0;
           previousPositionRef.current = null;
         }
         return "running";
@@ -377,19 +406,28 @@ const RunScreen: React.FC = () => {
   const handleEndRun = () => {
     if (runStatus === "idle") return;
 
+    // Pause the run first
+    setRunStatus("paused");
+    saveScreenNavigateTimeRef.current = Date.now();
+
     const userId = session?.user?.id;
     if (userId && pathCoords.length > 1 && totalDistanceMeters > 0) {
       captureTerritoryForRun(userId, pathCoords as TerritoryLatLng[], totalDistanceMeters);
     }
 
-    // Reset stats for a fresh run
-    setRunStatus("idle");
-    setElapsedSeconds(0);
-    setTotalDistanceMeters(0);
-    setAveragePace("-");
-    setPathCoords([]);
-    previousPositionRef.current = null;
-    pointsDistanceRef.current = 0;
+    // Navigate to SaveActivityScreen with run data
+    const distanceKm = totalDistanceMeters / 1000;
+    const startTime = new Date(Date.now() - elapsedSeconds * 1000).toISOString();
+    
+    navigation.navigate("SaveActivity" as never, {
+      distanceKm,
+      elapsedSeconds,
+      avgSplitPerKm: avgSplitPerKm === '-' ? null : parseFloat(avgSplitPerKm),
+      points,
+      pathCoords: pathCoords.length > 0 ? pathCoords : undefined,
+      startedAt: startTime,
+      completedAt: new Date().toISOString(),
+    } as never);
   };
 
   const handleToggleRoutePlanning = () => {
@@ -520,6 +558,21 @@ const RunScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Missions Shortcut */}
+      <View style={styles.missionsShortcutContainer}>
+        <TouchableOpacity
+          style={[styles.missionsShortcutButton, { borderColor: theme.accent }]}
+          onPress={() => {
+            // Navigate to Missions screen
+            navigation.navigate('SideMissions');
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="flag-outline" size={16} color={theme.accent} style={styles.missionsShortcutIcon} />
+          <Text style={[styles.missionsShortcutText, { color: theme.accent }]}>Missions</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Stats card */}
       <NeonCard highlight style={styles.statsCard}>
         {/* GPS status */}
@@ -541,7 +594,7 @@ const RunScreen: React.FC = () => {
             <Text style={styles.statLabel}>Time</Text>
           </View>
           <View style={styles.statBlock}>
-            <Text style={styles.statValue}>{averagePace}</Text>
+            <Text style={styles.statValue}>{avgSplitPerKm === '-' ? '-' : avgSplitPerKm}</Text>
             <Text style={styles.statLabel}>Split avg. (/km)</Text>
           </View>
           <View style={styles.statBlock}>
@@ -774,6 +827,29 @@ const styles = StyleSheet.create({
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
     borderTopColor: "#03CA59",
+  },
+  // Missions shortcut
+  missionsShortcutContainer: {
+    position: "absolute",
+    left: 16,
+    bottom: 280, // Position above stats card (increased from 250 to move button higher)
+    zIndex: 10,
+  },
+  missionsShortcutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  missionsShortcutIcon: {
+    marginRight: 6,
+  },
+  missionsShortcutText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
 
