@@ -334,15 +334,15 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logo: {
-    width: 220,
-    height: 220,
+    width: 340,
+    height: 340,
     resizeMode: 'contain',
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   appName: {
     color: '#FFFFFF',
-    fontSize: 26,
+    fontSize: 36,
     fontWeight: '800',
   },
   subtitle: {
