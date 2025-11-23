@@ -1,13 +1,15 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -53,6 +55,7 @@ export default function ChatScreen() {
     },
   ]);
   const [inputText, setInputText] = useState('');
+  const messagesListRef = useRef<FlatList>(null);
 
   const handleSend = () => {
     if (inputText.trim()) {
@@ -66,6 +69,10 @@ export default function ChatScreen() {
       };
       setMessages([...messages, newMessage]);
       setInputText('');
+      // Scroll to bottom after sending message
+      setTimeout(() => {
+        messagesListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     }
   };
 
@@ -90,75 +97,81 @@ export default function ChatScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={90}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.avatarStack}>
-              <View style={[styles.avatarSmall, styles.avatar1]} />
-              <View style={[styles.avatarSmall, styles.avatar2]} />
-              <View style={[styles.avatarSmall, styles.avatar3]} />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.contentWrapper}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={styles.avatarStack}>
+                  <View style={[styles.avatarSmall, styles.avatar1]} />
+                  <View style={[styles.avatarSmall, styles.avatar2]} />
+                  <View style={[styles.avatarSmall, styles.avatar3]} />
+                </View>
+                <View style={styles.headerText}>
+                  <Text style={styles.groupName}>Neighbourhood Runners</Text>
+                  <Text style={styles.memberCount}>12 members online</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.infoButton} activeOpacity={0.7}>
+                <Ionicons name="information-circle-outline" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
             </View>
-            <View style={styles.headerText}>
-              <Text style={styles.groupName}>Neighbourhood Runners</Text>
-              <Text style={styles.memberCount}>12 members online</Text>
+
+            {/* Challenge Pill */}
+            <View style={styles.challengePill}>
+              <MaterialIcons name="emoji-events" size={16} color="#03CA59" />
+              <Text style={styles.challengeText}>
+                Run 3km together today to earn bonus points
+              </Text>
+            </View>
+
+            {/* Messages List - FlatList only, no ScrollView wrapper */}
+            <FlatList
+              ref={messagesListRef}
+              data={messages}
+              renderItem={renderMessage}
+              keyExtractor={(item) => item.id}
+              style={styles.messagesList}
+              contentContainerStyle={styles.messagesContent}
+              keyboardShouldPersistTaps="handled"
+              inverted={false}
+            />
+
+            {/* Fixed Bottom Input Bar */}
+            <View style={[styles.inputContainer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+              <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
+                <Ionicons name="attach-outline" size={24} color={theme.mutedText} />
+              </TouchableOpacity>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.border, color: theme.text }]}
+                placeholder="Type a message..."
+                placeholderTextColor={theme.mutedText}
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={500}
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, { backgroundColor: theme.border }, inputText.trim() && [styles.sendButtonActive, { backgroundColor: theme.accent }]]}
+                onPress={handleSend}
+                activeOpacity={0.8}
+                disabled={!inputText.trim()}
+              >
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={inputText.trim() ? '#000' : theme.mutedText}
+                />
+              </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity style={styles.infoButton} activeOpacity={0.7}>
-            <Ionicons name="information-circle-outline" size={24} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Challenge Pill */}
-        <View style={styles.challengePill}>
-          <MaterialIcons name="emoji-events" size={16} color="#03CA59" />
-          <Text style={styles.challengeText}>
-            Run 3km together today to earn bonus points
-          </Text>
-        </View>
-
-        {/* Messages List */}
-        <FlatList
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          style={styles.messagesList}
-          contentContainerStyle={styles.messagesContent}
-          inverted={false}
-        />
-
-        {/* Input Bar */}
-        <View style={[styles.inputContainer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
-          <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
-            <Ionicons name="attach-outline" size={24} color={theme.mutedText} />
-          </TouchableOpacity>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.border, color: theme.text }]}
-            placeholder="Type a message..."
-            placeholderTextColor={theme.mutedText}
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, { backgroundColor: theme.border }, inputText.trim() && [styles.sendButtonActive, { backgroundColor: theme.accent }]]}
-            onPress={handleSend}
-            activeOpacity={0.8}
-            disabled={!inputText.trim()}
-          >
-            <Ionicons
-              name="send"
-              size={20}
-              color={inputText.trim() ? '#000' : theme.mutedText}
-            />
-          </TouchableOpacity>
-        </View>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -169,6 +182,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   keyboardView: {
+    flex: 1,
+  },
+  contentWrapper: {
     flex: 1,
   },
   header: {

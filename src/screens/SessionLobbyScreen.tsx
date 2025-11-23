@@ -2,14 +2,18 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
+  Keyboard,
   KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getMessages,
@@ -61,18 +65,21 @@ export default function SessionLobbyScreen({ route }: Props) {
   }, [sessionId]);
 
   useEffect(() => {
-    if (sessionId) {
-      const unsubscribeMembers = listenToMembers(sessionId, (updatedMembers) => {
-        setMembers(updatedMembers);
-      });
+    if (!sessionId) return;
 
-      const unsubscribeMessages = listenToMessages(sessionId, setMessages);
+    // Set up realtime subscriptions
+    const unsubscribeMembers = listenToMembers(sessionId, (updatedMembers) => {
+      setMembers(updatedMembers);
+    });
 
-      return () => {
-        unsubscribeMembers();
-        unsubscribeMessages();
-      };
-    }
+    const unsubscribeMessages = listenToMessages(sessionId, (updatedMessages) => {
+      setMessages(updatedMessages);
+    });
+
+    return () => {
+      unsubscribeMembers();
+      unsubscribeMessages();
+    };
   }, [sessionId]);
 
   const loadData = async () => {
@@ -151,120 +158,144 @@ export default function SessionLobbyScreen({ route }: Props) {
     );
   }
 
-  return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
-      <View style={styles.header}>
-        <Text style={styles.title}>{session.name}</Text>
-        <Text style={styles.code}>Join Code: {session.join_code}</Text>
-        <Text style={styles.dates}>
-          Week: {session.week_start} - {session.week_end}
+  const renderMessage = ({ item }: { item: Message }) => {
+    return (
+      <View style={[
+        styles.messageItem,
+        item.user_id === user?.id && styles.myMessage
+      ]}>
+        <Text style={styles.messageSender}>
+          {item.profiles?.username || `User ${item.user_id.slice(0, 8)}`}
+        </Text>
+        <Text style={styles.messageContent}>{item.content}</Text>
+        <Text style={styles.messageTime}>
+          {new Date(item.created_at).toLocaleTimeString()}
         </Text>
       </View>
+    );
+  };
 
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={[
-            styles.messageItem,
-            item.user_id === user?.id && styles.myMessage
-          ]}>
-            <Text style={styles.messageSender}>
-              {item.profiles?.username || `User ${item.user_id.slice(0, 8)}`}
-            </Text>
-            <Text style={styles.messageContent}>{item.content}</Text>
-            <Text style={styles.messageTime}>
-              {new Date(item.created_at).toLocaleTimeString()}
-            </Text>
-          </View>
-        )}
-        ListHeaderComponent={() => (
-          <View style={styles.sessionContent}>
-            <Text style={styles.sectionTitle}>Leaderboard</Text>
-            <FlatList
-              data={sortedMembers}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item, index }) => (
-                <View style={styles.memberItem}>
-                  <Text style={styles.rank}>#{index + 1}</Text>
-                  <Text style={styles.memberName}>User {item.user_id.slice(0, 8)}</Text>
-                  <Text style={styles.points}>{item.points} pts</Text>
-                </View>
-              )}
-              scrollEnabled={false}
-            />
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.contentWrapper}>
+            {/* Session Detail Section - Scrollable */}
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.header}>
+                <Text style={styles.title}>{session.name}</Text>
+                <Text style={styles.code}>Join Code: {session.code || session.join_code}</Text>
+                <Text style={styles.dates}>
+                  Week: {session.week_start} - {session.week_end}
+                </Text>
+              </View>
 
-            <Text style={styles.sectionTitle}>Members ({members.length})</Text>
-            {members.map((member) => (
-              <Text key={member.id} style={styles.memberName}>
-                User {member.user_id.slice(0, 8)}
-              </Text>
-            ))}
+              <View style={styles.sessionContent}>
+                <Text style={styles.sectionTitle}>Leaderboard</Text>
+                {sortedMembers.map((member, index) => (
+                  <View key={member.id} style={styles.memberItem}>
+                    <Text style={styles.rank}>#{index + 1}</Text>
+                    <Text style={styles.memberName}>User {member.user_id.slice(0, 8)}</Text>
+                    <Text style={styles.points}>{member.points} pts</Text>
+                  </View>
+                ))}
 
-            {!hasUserSubmittedDare && (
-              <>
-                <Text style={styles.sectionTitle}>Submit Your Dare</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your dare..."
-                  value={dareText}
-                  onChangeText={setDareText}
-                  multiline
-                />
-                <TouchableOpacity
-                  style={[styles.button, submittingDare && styles.buttonDisabled]}
-                  onPress={handleSubmitDare}
-                  disabled={submittingDare}
-                >
-                  {submittingDare ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.buttonText}>Submit Dare</Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            )}
-
-            {dares.length > 0 && (
-              <>
-                <Text style={styles.sectionTitle}>Submitted Dares ({dares.length})</Text>
-                {dares.map((dare) => (
-                  <Text key={dare.id} style={styles.dareText}>
-                    {dare.dare_text}
+                <Text style={styles.sectionTitle}>Members ({members.length})</Text>
+                {members.map((member) => (
+                  <Text key={member.id} style={styles.memberName}>
+                    User {member.user_id.slice(0, 8)}
                   </Text>
                 ))}
-              </>
+
+                {dares.length > 0 && (
+                  <>
+                    <Text style={styles.sectionTitle}>Submitted Dares ({dares.length})</Text>
+                    {dares.map((dare) => (
+                      <Text key={dare.id} style={styles.dareText}>
+                        {dare.dare_text}
+                      </Text>
+                    ))}
+                  </>
+                )}
+              </View>
+
+              {/* Chat Section - Render messages as Views inside ScrollView */}
+              <View style={styles.chatSection}>
+                <Text style={styles.chatTitle}>Group Chat</Text>
+                <View style={styles.messagesContainer}>
+                  {messages.map((message) => (
+                    <View key={message.id}>
+                      {renderMessage({ item: message })}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Fixed Bottom Inputs */}
+            {!hasUserSubmittedDare && (
+              <View style={styles.dareInputContainer}>
+                <Text style={styles.dareInputLabel}>Submit Your Dare</Text>
+                <View style={styles.dareInputRow}>
+                  <TextInput
+                    style={styles.dareInput}
+                    placeholder="Enter your dare..."
+                    placeholderTextColor="#9CA3AF"
+                    value={dareText}
+                    onChangeText={setDareText}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    style={[styles.dareButton, submittingDare && styles.buttonDisabled]}
+                    onPress={handleSubmitDare}
+                    disabled={submittingDare || !dareText.trim()}
+                  >
+                    {submittingDare ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text style={styles.dareButtonText}>Submit</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
 
-            <Text style={styles.chatTitle}>Group Chat</Text>
+            {/* Fixed Bottom Chat Input */}
+            <View style={styles.chatInputContainer}>
+              <TextInput
+                style={styles.chatInput}
+                placeholder="Type a message..."
+                placeholderTextColor="#9CA3AF"
+                value={chatText}
+                onChangeText={setChatText}
+                editable={!sendingMessage}
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, (!chatText.trim() || sendingMessage) && styles.buttonDisabled]}
+                onPress={handleSendMessage}
+                disabled={sendingMessage || !chatText.trim()}
+              >
+                {sendingMessage ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.sendButtonText}>Send</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
-        ListFooterComponent={() => (
-          <View style={styles.chatInputContainer}>
-            <TextInput
-              style={styles.chatInput}
-              placeholder="Type a message..."
-              value={chatText}
-              onChangeText={setChatText}
-              editable={!sendingMessage}
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, sendingMessage && styles.buttonDisabled]}
-              onPress={handleSendMessage}
-              disabled={sendingMessage || !chatText.trim()}
-            >
-              {sendingMessage ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.sendButtonText}>Send</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-        contentContainerStyle={styles.messagesList}
-        inverted={true}
-      />
-    </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -273,28 +304,43 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  keyboardView: {
+    flex: 1,
+  },
+  contentWrapper: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 16,
+  },
   header: {
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    marginBottom: 20,
   },
   sessionContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   chatSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    marginTop: 20,
   },
   chatTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    padding: 15,
-    backgroundColor: '#F9FAFB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    marginBottom: 12,
   },
-  content: {
-    padding: 20,
+  messagesContainer: {
+    paddingBottom: 8,
   },
   center: {
     flex: 1,
@@ -381,15 +427,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 10,
   },
-  messagesList: {
-    flex: 1,
-    padding: 10,
-  },
   messageItem: {
     backgroundColor: '#F9FAFB',
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 5,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
     maxWidth: '80%',
   },
   myMessage: {
@@ -400,22 +442,67 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#6B7280',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   messageContent: {
     fontSize: 14,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   messageTime: {
     fontSize: 10,
     color: '#9CA3AF',
     alignSelf: 'flex-end',
   },
+  dareInputContainer: {
+    padding: 12,
+    borderTopWidth: 0.5,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  dareInputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#111827',
+  },
+  dareInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  dareInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    minHeight: 40,
+    maxHeight: 100,
+    textAlignVertical: 'top',
+  },
+  dareButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    minHeight: 40,
+  },
+  dareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   chatInputContainer: {
     flexDirection: 'row',
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#D1D5DB',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
   },
   chatInput: {
     flex: 1,
@@ -425,14 +512,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 8,
     fontSize: 14,
-    marginRight: 10,
+    marginRight: 8,
+    maxHeight: 100,
   },
   sendButton: {
     backgroundColor: '#10B981',
     borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     justifyContent: 'center',
+    minHeight: 40,
   },
   sendButtonText: {
     color: '#FFFFFF',

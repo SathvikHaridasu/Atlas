@@ -11,14 +11,15 @@ import {
   View
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { createSession, getUserSessions } from '../../lib/sessionService';
+import { createSession, getUserSessions, joinSessionWithCode } from '../../lib/sessionService';
 
 interface Session {
   id: string;
   name: string;
   status: string;
   created_by: string;
-  join_code: string;
+  code: string; // Database column is 'code'
+  join_code?: string; // Alias for compatibility
   week_start?: string;
   week_end?: string;
 }
@@ -73,21 +74,25 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
     setModalLoading(true);
     try {
-      const session = await createSession(user.id, sessionName.trim());
+      const session = await createSession(sessionName.trim());
       setCreateModalVisible(false);
       setSessionName('');
       navigation.navigate('SessionLobby', { sessionId: session.id });
       loadSessions(); // Refresh list
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to create session');
     } finally {
       setModalLoading(false);
     }
   };
 
   const handleJoinSubmit = async () => {
-    if (joinCode.length !== 8) {
-      Alert.alert('Error', 'Please enter a valid 8-character join code');
+    // Normalize the code: trim whitespace, convert to uppercase
+    const normalizedCode = joinCode.trim().toUpperCase();
+    
+    // Validate exactly 6 characters
+    if (normalizedCode.length !== 6) {
+      Alert.alert('Error', 'Join code must be exactly 6 characters');
       return;
     }
 
@@ -98,13 +103,13 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
     setModalLoading(true);
     try {
-      const session = await joinSessionWithCode(user.id, joinCode.toUpperCase());
+      const session = await joinSessionWithCode(user.id, normalizedCode);
       setJoinModalVisible(false);
       setJoinCode('');
       navigation.navigate('SessionLobby', { sessionId: session.id });
       loadSessions(); // Refresh list
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to join session. Please check the code and try again.');
     } finally {
       setModalLoading(false);
     }
@@ -145,7 +150,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
             onPress={() => handleSessionPress(item)}
           >
             <Text style={styles.sessionName}>{item.name}</Text>
-            <Text style={styles.sessionCode}>Join Code: {item.join_code}</Text>
+            <Text style={styles.sessionCode}>Join Code: {item.code || item.join_code}</Text>
             <Text style={styles.sessionDates}>
               {item.week_start} - {item.week_end}
             </Text>
@@ -211,10 +216,10 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
             <TextInput
               style={styles.input}
-              placeholder="8-character join code"
+              placeholder="6-character join code"
               value={joinCode}
-              onChangeText={(text) => setJoinCode(text.toUpperCase().slice(0, 8))}
-              maxLength={8}
+              onChangeText={(text) => setJoinCode(text.toUpperCase().slice(0, 6))}
+              maxLength={6}
               autoCapitalize="characters"
             />
 
@@ -229,7 +234,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
               <TouchableOpacity
                 style={[styles.modalButton, modalLoading && styles.buttonDisabled]}
                 onPress={handleJoinSubmit}
-                disabled={modalLoading || joinCode.length !== 6}
+                disabled={modalLoading || joinCode.trim().length !== 6}
               >
                 {modalLoading ? (
                   <ActivityIndicator color="#FFFFFF" />

@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { joinSessionWithCode } from '../../lib/sessionService';
 
 export default function JoinSessionScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -18,8 +19,12 @@ export default function JoinSessionScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
 
   const handleJoin = async () => {
-    if (code.length !== 8) {
-      Alert.alert('Error', 'Please enter a valid 8-character join code');
+    // Normalize the code: trim whitespace, convert to uppercase
+    const normalizedCode = code.trim().toUpperCase();
+    
+    // Validate exactly 6 characters
+    if (normalizedCode.length !== 6) {
+      Alert.alert('Error', 'Join code must be exactly 6 characters');
       return;
     }
 
@@ -30,10 +35,10 @@ export default function JoinSessionScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const session = await joinSessionWithCode(user.id, code.toUpperCase());
+      const session = await joinSessionWithCode(user.id, normalizedCode);
       navigation.navigate('SessionLobby', { sessionId: session.id });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to join session. Please check the code and try again.');
     } finally {
       setLoading(false);
     }
@@ -49,19 +54,19 @@ export default function JoinSessionScreen({ navigation }: any) {
 
         <TextInput
           style={styles.input}
-          placeholder="Enter 8-character join code"
+          placeholder="Enter 6-character join code"
           placeholderTextColor="#9CA3AF"
           value={code}
-          onChangeText={(text) => setCode(text.toUpperCase().slice(0, 8))}
+          onChangeText={(text) => setCode(text.toUpperCase().slice(0, 6))}
           autoCapitalize="characters"
-          maxLength={8}
+          maxLength={6}
           editable={!loading}
         />
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleJoin}
-          disabled={loading || code.length !== 8}
+          disabled={loading || code.trim().length !== 6}
           activeOpacity={0.8}
         >
           {loading ? (

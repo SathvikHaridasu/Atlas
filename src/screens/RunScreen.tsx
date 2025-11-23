@@ -11,11 +11,11 @@ import { useMapState } from "../contexts/MapStateContext";
 import { useRunStats } from "../contexts/RunStatsContext";
 import { useAppTheme } from "../contexts/ThemeContext";
 import {
-  captureTerritoryForRun,
-  fetchTerritoriesForRegion,
-  tileToBounds,
-  type LatLng as TerritoryLatLng,
-  type TerritoryTile,
+    captureTerritoryForRun,
+    fetchTerritoriesForRegion,
+    tileToBounds,
+    type LatLng as TerritoryLatLng,
+    type TerritoryTile,
 } from "../lib/territoryHelper";
 
 const POINTS_KEY = "userPoints";
