@@ -614,7 +614,15 @@ export async function joinSessionWithCode(userId: string, joinCode: string): Pro
   return session;
 }
 
-export async function getUserSessions(userId: string): Promise<Session[]> {
+export interface SessionWithProfile extends Session {
+  profiles?: {
+    id: string;
+    avatar_url?: string;
+    username?: string;
+  };
+}
+
+export async function getUserSessions(userId: string): Promise<SessionWithProfile[]> {
   // Get session IDs where user is a member
   const { data: memberData, error: memberError } = await supabase
     .from("session_members")
@@ -632,10 +640,19 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 
   const sessionIds = memberData.map(m => m.session_id);
 
-  // Get sessions
+  // Get sessions with creator profiles
+  // Note: profiles.id is the primary key (references auth.users.id)
+  // sessions.created_by references profiles.id
   const { data, error } = await supabase
     .from("sessions")
-    .select("*")
+    .select(`
+      *,
+      profiles:created_by (
+        id,
+        avatar_url,
+        username
+      )
+    `)
     .in("id", sessionIds);
 
   if (error) {

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   StatusBar,
   StyleSheet,
@@ -12,30 +13,22 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Swipeable } from 'react-native-gesture-handler';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
-import { createSession, getUserSessions, joinSessionWithCode } from '../../lib/sessionService';
-
-interface Session {
-  id: string;
-  name: string;
-  status: string;
-  created_by: string;
-  code: string; // Database column is 'code'
-  join_code?: string; // Alias for compatibility
-  week_start?: string;
-  week_end?: string;
-}
+import { createSession, getUserSessions, joinSessionWithCode, leaveSession, SessionWithProfile } from '../../lib/sessionService';
 
 export default function SessionsHomeScreen({ navigation }: any) {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<SessionWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [joinModalVisible, setJoinModalVisible] = useState(false);
   const [sessionName, setSessionName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
+  const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
 
   useEffect(() => {
     if (user) {
@@ -118,8 +111,115 @@ export default function SessionsHomeScreen({ navigation }: any) {
     }
   };
 
-  const handleSessionPress = (session: Session) => {
+  const handleSessionPress = (session: SessionWithProfile) => {
     navigation.navigate('SessionLobby', { sessionId: session.id });
+  };
+
+  const handleLeaveChat = async (chat: SessionWithProfile) => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in');
+      return;
+    }
+
+    // Close swipeable if open
+    swipeableRefs.current[chat.id]?.close();
+
+    Alert.alert(
+      'Leave Chat',
+      `Are you sure you want to leave "${chat.name}"?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await leaveSession(chat.id, user.id);
+              // Remove from local list
+              setSessions((prev) => prev.filter((s) => s.id !== chat.id));
+            } catch (error: any) {
+              console.error('Failed to leave chat', error);
+              Alert.alert('Error', error.message || 'Could not leave chat.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const getSessionInitial = (name: string): string => {
+    return name.charAt(0).toUpperCase() || 'C';
+  };
+
+  const formatDateRange = (start?: string, end?: string): string => {
+    if (!start || !end) return '';
+    try {
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      const startFormatted = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endFormatted = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `${startFormatted} - ${endFormatted}`;
+    } catch {
+      return `${start} - ${end}`;
+    }
+  };
+
+  const renderRightActions = (session: SessionWithProfile) => (
+    <TouchableOpacity
+      style={styles.swipeDelete}
+      onPress={() => handleLeaveChat(session)}
+    >
+      <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+      <Text style={styles.swipeDeleteText}>Leave</Text>
+    </TouchableOpacity>
+  );
+
+  const renderChatItem = ({ item }: { item: SessionWithProfile }) => {
+    const avatarUrl = item.profiles?.avatar_url;
+    const initial = getSessionInitial(item.name);
+    const dateRange = formatDateRange(item.week_start, item.week_end);
+
+    return (
+      <Swipeable
+        ref={(ref) => {
+          if (ref) {
+            swipeableRefs.current[item.id] = ref;
+          }
+        }}
+        renderRightActions={() => renderRightActions(item)}
+        rightThreshold={40}
+      >
+        <TouchableOpacity
+          style={styles.chatRow}
+          onPress={() => handleSessionPress(item)}
+          activeOpacity={0.8}
+        >
+          {/* Left avatar */}
+          <View style={styles.avatarContainer}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitial}>{initial}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Middle text */}
+          <View style={styles.chatTextContainer}>
+            <Text style={styles.chatName}>{item.name}</Text>
+            <Text style={styles.chatCode}>Join Code: {item.code || item.join_code}</Text>
+            {dateRange && <Text style={styles.chatDates}>{dateRange}</Text>}
+          </View>
+
+          {/* Right arrow */}
+          <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+        </TouchableOpacity>
+      </Swipeable>
+    );
   };
 
   if (loading) {
@@ -168,20 +268,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
         <FlatList
           data={sessions}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.chatCard}
-              onPress={() => handleSessionPress(item)}
-            >
-              <Text style={styles.chatName}>{item.name}</Text>
-              <Text style={styles.chatCode}>Join Code: {item.code || item.join_code}</Text>
-              {item.week_start && item.week_end && (
-                <Text style={styles.chatDates}>
-                  {item.week_start} - {item.week_end}
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
+          renderItem={renderChatItem}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -335,27 +422,70 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
   },
-  chatCard: {
+  chatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#0B1220',
     borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     marginTop: 12,
   },
-  chatName: {
+  avatarContainer: {
+    marginRight: 12,
+  },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#111827',
+  },
+  avatarFallback: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#03CA59',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    color: '#FFFFFF',
+    fontWeight: '700',
     fontSize: 16,
+  },
+  chatTextContainer: {
+    flex: 1,
+  },
+  chatName: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#F9FAFB',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   chatCode: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#9CA3AF',
+    marginBottom: 2,
   },
   chatDates: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
     marginTop: 2,
+  },
+  swipeDelete: {
+    backgroundColor: '#DC2626',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderRadius: 18,
+    marginRight: 20,
+    marginTop: 12,
+  },
+  swipeDeleteText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
