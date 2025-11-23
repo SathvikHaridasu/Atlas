@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { FeedProvider } from './src/contexts/FeedContext';
 import { GoalsProvider } from './src/contexts/GoalsContext';
 import { MapStateProvider } from './src/contexts/MapStateContext';
+import { MissionsProvider } from './src/contexts/MissionsContext';
 import { RunStatsProvider } from './src/contexts/RunStatsContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -18,9 +19,11 @@ export default function App() {
             <RunStatsProvider>
               <FeedProvider>
                 <GoalsProvider>
-                  <MapStateProvider>
-                    <RootNavigator />
-                  </MapStateProvider>
+                  <MissionsProvider>
+                    <MapStateProvider>
+                      <RootNavigator />
+                    </MapStateProvider>
+                  </MissionsProvider>
                 </GoalsProvider>
               </FeedProvider>
             </RunStatsProvider>

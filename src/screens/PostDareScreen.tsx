@@ -22,12 +22,17 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
+import * as Haptics from 'expo-haptics';
+import { MissionCongratsModal } from '../components/MissionCongratsModal';
 import { useFeed } from '../contexts/FeedContext';
+import { useMissions, useMissionActions } from '../contexts/MissionsContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { FeedPost } from '../types/feed';
 import { uploadVideo } from '../../lib/videoService';
 import { useAuth } from '../../contexts/AuthContext';
+import { MISSION_REWARD_POINTS } from '../lib/missions/constants';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -39,15 +44,28 @@ export default function PostDareScreen() {
   const { theme } = useAppTheme();
   const { addPost } = useFeed();
   const { user } = useAuth();
+  const { availableMissions } = useMissions();
+  const { completeMission, clearActiveMission } = useMissionActions();
 
   // Get params from navigation
   const videoUri = route.params?.videoUri;
   const sessionId = route.params?.sessionId;
+  const activeMissionInstanceId = route.params?.activeMissionInstanceId ?? null;
+
+  // Get active mission if mission ID is provided
+  const activeMission = React.useMemo(() => {
+    if (!activeMissionInstanceId) return null;
+    return availableMissions.find((m) => m.id === activeMissionInstanceId) ?? null;
+  }, [availableMissions, activeMissionInstanceId]);
 
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isPosting, setIsPosting] = useState(false);
+  
+  // Mission congrats modal state
+  const [showMissionCongrats, setShowMissionCongrats] = useState(false);
+  const [completedMissionTitle, setCompletedMissionTitle] = useState<string | undefined>(undefined);
 
   // Video player for preview
   const player = useVideoPlayer(videoUri || '', (player) => {
@@ -108,6 +126,22 @@ export default function PostDareScreen() {
     setIsPosting(true);
 
     try {
+      // Get current location if available (for mission completion)
+      let currentLocation: { latitude: number; longitude: number } | null = null;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          currentLocation = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+        }
+      } catch (locationError) {
+        console.warn('Could not get location for mission:', locationError);
+        // Continue without location - it's optional
+      }
+
       // Upload video to Supabase Storage
       const publicUrl = await uploadVideo(videoUri, user.id, {
         title: title.trim(),
@@ -132,16 +166,57 @@ export default function PostDareScreen() {
       // Add post to feed context
       addPost(post);
 
-      // Show success message
-      Alert.alert('Success', 'Your dare video has been posted to the feed!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Navigate back to previous screen
-            navigation.goBack();
+      // Complete mission if active
+      if (activeMissionInstanceId && activeMission) {
+        try {
+          await completeMission({
+            missionInstanceId: activeMissionInstanceId,
+            mediaUrl: publicUrl,
+            location: currentLocation,
+            notes: description.trim(),
+          });
+          clearActiveMission();
+
+          // Trigger haptic feedback for success
+          try {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (hapticError) {
+            // Haptics not available, continue
+          }
+
+          // Set mission title and show congrats modal
+          setCompletedMissionTitle(
+            activeMission.mission_template?.title ?? 'Side Mission'
+          );
+          setShowMissionCongrats(true);
+        } catch (missionError: any) {
+          console.error('Error completing mission:', missionError);
+          // Show success for feed post but warn about mission
+          Alert.alert(
+            'Video Posted',
+            'Your video was posted to the feed, but we couldn\'t complete the mission. Try again later.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  navigation.goBack();
+                },
+              },
+            ]
+          );
+        }
+      } else {
+        // Show success message (no mission)
+        Alert.alert('Success', 'Your dare video has been posted to the feed!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate back to previous screen
+              navigation.goBack();
+            },
           },
-        },
-      ]);
+        ]);
+      }
     } catch (error: any) {
       console.error('Error posting dare video:', error);
       Alert.alert(
@@ -268,11 +343,29 @@ export default function PostDareScreen() {
             />
           </View>
 
+          {/* Mission Info Banner */}
+          {activeMission && (
+            <View style={[styles.missionInfoBanner, { backgroundColor: `${theme.accent}15`, borderColor: theme.accent }]}>
+              <Ionicons name="target" size={20} color={theme.accent} style={{ marginRight: 12 }} />
+              <View style={styles.missionInfoText}>
+                <Text style={[styles.missionInfoTitle, { color: theme.text }]}>
+                  Side Mission Active
+                </Text>
+                <Text style={[styles.missionInfoSubtitle, { color: theme.mutedText }]}>
+                  This video will be used as proof for: {activeMission.mission_template.title}
+                </Text>
+                <Text style={[styles.missionInfoPoints, { color: theme.accent }]}>
+                  +{activeMission.mission_template.points_reward} pts on completion
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Description Input */}
           <View style={[styles.inputSection, { backgroundColor: theme.card }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Description *</Text>
             <Text style={[styles.inputHint, { color: theme.mutedText }]}>
-              Describe your dare video
+              Describe your dare video{activeMission ? ' (this will also be used as mission proof)' : ''}
             </Text>
             <TextInput
               style={[
@@ -320,6 +413,18 @@ export default function PostDareScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Mission Congrats Modal */}
+      <MissionCongratsModal
+        visible={showMissionCongrats}
+        missionTitle={completedMissionTitle}
+        pointsAwarded={MISSION_REWARD_POINTS}
+        onClose={() => {
+          setShowMissionCongrats(false);
+          // Navigate back after closing modal
+          navigation.goBack();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -451,6 +556,30 @@ const styles = StyleSheet.create({
     color: '#020617',
     fontSize: 16,
     fontWeight: '700',
+  },
+  missionInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  missionInfoText: {
+    flex: 1,
+  },
+  missionInfoTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  missionInfoSubtitle: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  missionInfoPoints: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

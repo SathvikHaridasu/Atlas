@@ -1,6 +1,7 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View, Animated } from "react-native";
@@ -12,6 +13,7 @@ import { useRunStats } from "../contexts/RunStatsContext";
 import { useAppTheme } from "../contexts/ThemeContext";
 import { NeonCard } from "../components/ui/NeonCard";
 import { usePressScale } from "../hooks/usePressScale";
+import type { RootStackParamList } from "../navigation/RootNavigator";
 import {
     captureTerritoryForRun,
     fetchTerritoriesForRegion,
@@ -77,12 +79,14 @@ const PlayPauseButton: React.FC<{
   );
 };
 
+type RunScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 const RunScreen: React.FC = () => {
   const { updateStats } = useRunStats();
   const { theme } = useAppTheme();
   const { session, profile } = useAuth();
   const { masterRegion } = useMapState();
-  const navigation = useNavigation();
+  const navigation = useNavigation<RunScreenNavigationProp>();
 
   // Get avatar URL from profile or use placeholder
   const avatarUrl =
@@ -554,6 +558,21 @@ const RunScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Side Missions Shortcut */}
+      <View style={styles.missionsShortcutContainer}>
+        <TouchableOpacity
+          style={[styles.missionsShortcutButton, { borderColor: theme.accent }]}
+          onPress={() => {
+            // Navigate to Side Missions screen
+            navigation.navigate('SideMissions');
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="flag-outline" size={16} color={theme.accent} style={styles.missionsShortcutIcon} />
+          <Text style={[styles.missionsShortcutText, { color: theme.accent }]}>Side Missions</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Stats card */}
       <NeonCard highlight style={styles.statsCard}>
         {/* GPS status */}
@@ -808,6 +827,29 @@ const styles = StyleSheet.create({
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
     borderTopColor: "#03CA59",
+  },
+  // Side Missions shortcut
+  missionsShortcutContainer: {
+    position: "absolute",
+    left: 16,
+    bottom: 250, // Position above stats card (stats card is at bottom: 130, so this is above it)
+    zIndex: 10,
+  },
+  missionsShortcutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  missionsShortcutIcon: {
+    marginRight: 6,
+  },
+  missionsShortcutText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
 

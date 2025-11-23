@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import HeaderHomeButton from '../components/HeaderHomeButton';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { useCurrentProfile } from '../hooks/useCurrentProfile';
+import { useSessionPoints } from '../hooks/useSessionPoints';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
@@ -16,7 +17,15 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const { theme } = useAppTheme();
   const { profile, loading } = useCurrentProfile();
+  const { totalPoints, refreshPoints } = useSessionPoints();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
+
+  // Refresh points when screen comes into focus (e.g., after mission completion)
+  useFocusEffect(
+    useCallback(() => {
+      refreshPoints();
+    }, [refreshPoints])
+  );
 
   const displayName =
     profile?.display_name ||
@@ -81,16 +90,21 @@ export default function ProfileScreen() {
           {/* Stats Row */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
+              <View style={styles.statValueContainer}>
+                <Ionicons name="trophy" size={16} color={theme.accent} style={styles.statIcon} />
+                <Text style={[styles.statValue, { color: theme.accent }]}>
+                  {totalPoints.toLocaleString()}
+                </Text>
+              </View>
+              <Text style={[styles.statLabel, { color: theme.mutedText }]}>Points</Text>
+            </View>
+            <View style={styles.statItem}>
               <Text style={[styles.statValue, { color: theme.text }]}>0</Text>
               <Text style={[styles.statLabel, { color: theme.mutedText }]}>Dares</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={[styles.statValue, { color: theme.text }]}>0</Text>
               <Text style={[styles.statLabel, { color: theme.mutedText }]}>Followers</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.text }]}>0</Text>
-              <Text style={[styles.statLabel, { color: theme.mutedText }]}>Following</Text>
             </View>
           </View>
 
@@ -188,10 +202,17 @@ const styles = StyleSheet.create({
   statItem: {
     alignItems: 'center',
   },
+  statValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  statIcon: {
+    marginRight: 4,
+  },
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,

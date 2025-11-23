@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import HeaderHomeButton from '../components/HeaderHomeButton';
 import SaveVideoButton from '../components/SaveVideoButton';
 import { useAppTheme } from '../contexts/ThemeContext';
+import { useMissions } from '../contexts/MissionsContext';
 import { useSaveVideo } from '../hooks/useSaveVideo';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -33,9 +34,11 @@ export default function CameraScreen() {
   const navigation = useNavigation();
   const route = useRoute<CameraScreenRouteProp>();
   const sessionId = route.params?.sessionId;
+  const activeMissionInstanceId = route.params?.activeMissionInstanceId ?? null;
   const [permission, requestPermission] = useCameraPermissions();
   const { saveVideo } = useSaveVideo();
   const { theme } = useAppTheme();
+  const { availableMissions } = useMissions();
 
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState<Duration>(30);
@@ -53,6 +56,12 @@ export default function CameraScreen() {
   const recordingPromiseRef = useRef<Promise<{ uri: string }> | null>(null);
   const isStoppingRef = useRef<boolean>(false);
   const shouldNavigateOnCompleteRef = useRef<boolean>(true);
+
+  // Get active mission if mission ID is provided
+  const activeMission = useMemo(() => {
+    if (!activeMissionInstanceId) return null;
+    return availableMissions.find((m) => m.id === activeMissionInstanceId) ?? null;
+  }, [availableMissions, activeMissionInstanceId]);
 
   // Cleanup function to stop camera and clear resources
   const cleanupCamera = useCallback(() => {
@@ -475,6 +484,7 @@ export default function CameraScreen() {
             (navigation as any).navigate('PostDare', {
               videoUri: uri,
               sessionId: sessionId,
+              activeMissionInstanceId: activeMissionInstanceId,
             });
           } else if (shouldNavigateOnCompleteRef.current && uri) {
             // If no sessionId, just save the video and stay on camera
@@ -570,8 +580,28 @@ export default function CameraScreen() {
           pointerEvents="none"
         />
 
+        {/* Mission Banner */}
+        {activeMission && (
+          <View style={styles.missionBanner}>
+            <View style={[styles.missionBannerContent, { backgroundColor: theme.card, borderColor: theme.accent }]}>
+              <Ionicons name="target" size={16} color={theme.accent} style={{ marginRight: 8 }} />
+              <View style={styles.missionBannerText}>
+                <Text style={[styles.missionBannerTitle, { color: theme.text }]}>Side Mission Active</Text>
+                <Text style={[styles.missionBannerSubtitle, { color: theme.mutedText }]}>
+                  {activeMission.mission_template.title}
+                </Text>
+              </View>
+              <View style={[styles.missionBannerPoints, { backgroundColor: `${theme.accent}20` }]}>
+                <Text style={[styles.missionBannerPointsText, { color: theme.accent }]}>
+                  +{activeMission.mission_template.points_reward} pts
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Top Bar */}
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, activeMission && { top: 110 }]}>
           <View style={styles.topBarContent}>
             {/* Left: Close Button and Home Button */}
             <View style={styles.leftButtons}>
@@ -872,6 +902,48 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 200,
+  },
+  missionBanner: {
+    position: 'absolute',
+    top: 48,
+    left: 16,
+    right: 16,
+    zIndex: 15,
+  },
+  missionBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  missionBannerText: {
+    flex: 1,
+    marginRight: 8,
+  },
+  missionBannerTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  missionBannerSubtitle: {
+    fontSize: 11,
+    fontWeight: '400',
+  },
+  missionBannerPoints: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  missionBannerPointsText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   topBar: {
     position: 'absolute',

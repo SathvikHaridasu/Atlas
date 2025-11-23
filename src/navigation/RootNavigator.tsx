@@ -40,6 +40,7 @@ import SessionLeaderboardScreen from '../screens/SessionLeaderboardScreen';
 import SessionLobbyScreen from '../screens/SessionLobbyScreen';
 import SessionSettingsScreen from '../screens/SessionSettingsScreen';
 import SessionsHomeScreen from '../screens/SessionsHomeScreen';
+import SideMissionsScreen from '../screens/SideMissionsScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import PostDareScreen from '../screens/PostDareScreen';
@@ -71,13 +72,14 @@ export type DrawerParamList = {
   Favorites: undefined;
   MyCaptures: undefined;
   MyGoals: undefined;
+  SideMissions: undefined;
 };
 
 // Define the type for root stack navigation parameters
 export type RootStackParamList = {
   MainDrawer: undefined;
-  Camera: { sessionId?: string }; // sessionId is optional since camera can be used from other places too
-  PostDare: { videoUri: string; sessionId: string }; // Required params for posting dare video
+  Camera: { sessionId?: string; activeMissionInstanceId?: string | null }; // sessionId is optional since camera can be used from other places too
+  PostDare: { videoUri: string; sessionId: string; activeMissionInstanceId?: string | null }; // Required params for posting dare video
   CreateSession: undefined;
   JoinSession: undefined;
   SessionLobby: { sessionId: string; sessionName?: string };
@@ -109,6 +111,7 @@ export type RootStackParamList = {
   };
   SavedRuns: undefined;
   RunDetail: { activityId: string };
+  SideMissions: undefined;
 };
 
 // Theme colors for drawer
@@ -326,6 +329,17 @@ function MainDrawer() {
           headerShown: false,
         }}
       />
+      <Drawer.Screen
+        name="SideMissions"
+        component={SideMissionsScreen}
+        options={{
+          drawerLabel: 'Side Missions',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="target-outline" size={size} color={color} />
+          ),
+          headerShown: false,
+        }}
+      />
     </Drawer.Navigator>
   );
 }
@@ -486,6 +500,13 @@ export default function RootNavigator() {
           <Stack.Screen
             name="RunDetail"
             component={RunDetailScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="SideMissions"
+            component={SideMissionsScreen}
             options={{
               headerShown: false,
             }}
