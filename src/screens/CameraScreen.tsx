@@ -38,9 +38,76 @@ export default function CameraScreen() {
   const [beautyEnabled, setBeautyEnabled] = useState(false);
   const [lastTap, setLastTap] = useState<number | null>(null);
 
-  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressAnimRef = useRef(new Animated.Value(0));
   const cameraRef = useRef<CameraView>(null);
+  const recordingPromiseRef = useRef<Promise<{ uri: string }> | null>(null);
+  const isStoppingRef = useRef<boolean>(false);
+  const shouldNavigateOnCompleteRef = useRef<boolean>(true);
+
+  // Cleanup function to stop camera and clear resources
+  const cleanupCamera = useCallback(() => {
+    // Stop recording if active
+    if (isRecording) {
+      setIsRecording(false);
+      
+      // Stop the recording timer
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      
+      // Reset animations
+      setElapsedMs(0);
+      progressAnimRef.current.setValue(0);
+    }
+    
+    // Clear any timers
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  }, [isRecording]);
+
+  const handleStopRecording = useCallback(async () => {
+    try {
+      if (!cameraRef.current) {
+        throw new Error('Camera ref not available');
+      }
+
+      if (!isRecording || isStoppingRef.current) {
+        if (isStoppingRef.current) {
+          console.warn('Recording stop already in progress');
+        } else {
+          console.warn('No active recording to stop');
+        }
+        return;
+      }
+
+      isStoppingRef.current = true;
+      shouldNavigateOnCompleteRef.current = true; // Navigate after stopping
+
+      // Stop the recording timer
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setElapsedMs(0);
+      progressAnimRef.current.setValue(0);
+
+      // Stop actual video recording - this will cause the recordAsync promise to resolve
+      cameraRef.current.stopRecording();
+
+      // The promise will resolve in handleStartRecording's then block
+      // We don't need to wait for it here since it's already handled
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      Alert.alert('Error', 'There was a problem stopping the recording. Please try again.');
+      setIsRecording(false);
+      recordingPromiseRef.current = null;
+      isStoppingRef.current = false;
+    }
+  }, [cameraRef, isRecording]);
 
   useEffect(() => {
     if (isRecording) {
@@ -109,14 +176,6 @@ export default function CameraScreen() {
     }, [cleanupCamera])
   );
 
-  // Additional cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Cleanup on component unmount
-      cleanupCamera();
-    };
-  }, [cleanupCamera]);
-
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
@@ -128,8 +187,8 @@ export default function CameraScreen() {
   const persistRecording = async (tempUri: string): Promise<string> => {
     try {
       const fileName = `video_${Date.now()}.mp4`;
-      const documentsDir = FileSystem.documentDirectory;
-      const cacheDir = FileSystem.cacheDirectory;
+      const documentsDir = (FileSystem as any).documentDirectory || null;
+      const cacheDir = (FileSystem as any).cacheDirectory || null;
       const targetDir = documentsDir || cacheDir;
 
       if (!targetDir) {
@@ -179,9 +238,11 @@ export default function CameraScreen() {
       // Wait for the recording promise to resolve to get the URI
       if (recordingPromiseRef.current) {
         try {
-          const { uri } = await recordingPromiseRef.current;
-          setLastVideoUri(uri);
-          // Don't navigate, just save the URI - navigation is handled by handleClose
+          const result = await recordingPromiseRef.current;
+          if (result && result.uri) {
+            setLastVideoUri(result.uri);
+            // Don't navigate, just save the URI - navigation is handled by handleClose
+          }
         } catch (error) {
           console.error('Error getting video URI:', error);
         }
@@ -193,30 +254,6 @@ export default function CameraScreen() {
       isStoppingRef.current = false;
     }
   }, [cameraRef, isRecording]);
-
-  // Cleanup function to stop camera and clear resources
-  const cleanupCamera = useCallback(() => {
-    // Stop recording if active
-    if (isRecording) {
-      setIsRecording(false);
-      
-      // Stop the recording timer
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-      
-      // Reset animations
-      setElapsedMs(0);
-      progressAnimRef.current.setValue(0);
-    }
-    
-    // Clear any timers
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-  }, [isRecording]);
 
   const handleClose = async () => {
     // Stop recording and cleanup
@@ -294,14 +331,19 @@ export default function CameraScreen() {
       // Start actual video recording - recordAsync returns a Promise that resolves when recording stops
       const recordingPromise = cameraRef.current.recordAsync({
         maxDuration: duration,
-        quality: '720p',
       });
 
-      recordingPromiseRef.current = recordingPromise;
+      recordingPromiseRef.current = recordingPromise as Promise<{ uri: string }>;
 
       // Handle the recording completion (when it stops automatically or manually)
       recordingPromise
-        .then(async ({ uri }) => {
+        .then(async (result) => {
+          if (!result || !result.uri) {
+            throw new Error('Recording completed but no URI returned');
+          }
+          
+          const { uri } = result;
+          
           // Recording completed successfully
           setLastVideoUri(uri);
           setIsRecording(false);
@@ -318,7 +360,11 @@ export default function CameraScreen() {
 
           // Navigate to ShareToGroup screen only if shouldNavigateOnComplete is true
           if (shouldNavigateOnCompleteRef.current) {
-            navigation.navigate('ShareToGroup' as never, { videoUri: uri } as never);
+            try {
+              (navigation as any).navigate('ShareToGroup', { videoUri: uri });
+            } catch (navError) {
+              console.error('Navigation error:', navError);
+            }
           }
         })
         .catch((error) => {
@@ -335,46 +381,6 @@ export default function CameraScreen() {
       recordingPromiseRef.current = null;
     }
   }, [cameraRef, isRecording, duration, saveVideo, navigation]);
-
-  const handleStopRecording = useCallback(async () => {
-    try {
-      if (!cameraRef.current) {
-        throw new Error('Camera ref not available');
-      }
-
-      if (!isRecording || isStoppingRef.current) {
-        if (isStoppingRef.current) {
-          console.warn('Recording stop already in progress');
-        } else {
-          console.warn('No active recording to stop');
-        }
-        return;
-      }
-
-      isStoppingRef.current = true;
-      shouldNavigateOnCompleteRef.current = true; // Navigate after stopping
-
-      // Stop the recording timer
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-      setElapsedMs(0);
-      progressAnimRef.current.setValue(0);
-
-      // Stop actual video recording - this will cause the recordAsync promise to resolve
-      cameraRef.current.stopRecording();
-
-      // The promise will resolve in handleStartRecording's then block
-      // We don't need to wait for it here since it's already handled
-    } catch (error) {
-      console.error('Error stopping recording:', error);
-      Alert.alert('Error', 'There was a problem stopping the recording. Please try again.');
-      setIsRecording(false);
-      recordingPromiseRef.current = null;
-      isStoppingRef.current = false;
-    }
-  }, [cameraRef, isRecording]);
 
   const handleAddSound = () => {
     // Stub handler
@@ -402,8 +408,8 @@ export default function CameraScreen() {
 
   const progress = elapsedMs / (duration * 1000);
 
-  const flashIconName =
-    flashMode === 'auto' ? 'flash-auto' : flashMode === 'on' ? 'flash-on' : 'flash-off';
+  const flashIconName: keyof typeof Ionicons.glyphMap =
+    flashMode === 'auto' ? 'flash' : flashMode === 'on' ? 'flash' : 'flash-off';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
