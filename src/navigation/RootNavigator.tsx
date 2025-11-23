@@ -14,6 +14,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 
 import ChallengesScreen from '../screens/ChallengesScreen';
+import ChatScreen from '../screens/ChatScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
@@ -26,6 +27,7 @@ import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import SettingsNavigator from './SettingsNavigator';
+import LeaderboardScreen from '../../app/leaderboard/LeaderboardScreen';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -178,6 +180,16 @@ export default function RootNavigator() {
           <Stack.Screen
             name="MasterMap"
             component={MasterMapScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Chat"
+            component={ChatScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Leaderboard"
+            component={LeaderboardScreen}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>
