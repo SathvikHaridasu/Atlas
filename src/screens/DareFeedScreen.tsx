@@ -18,7 +18,10 @@ import { VideoMetadata } from '../types/video';
 import FullScreenVideoModal from '../components/FullScreenVideoModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const VIDEO_PREVIEW_HEIGHT = 400;
+// Instagram Reels style: portrait aspect ratio (9:16)
+// Use 75% of screen width for better proportions
+const VIDEO_CARD_WIDTH = SCREEN_WIDTH * 0.75; // 75% of screen width
+const VIDEO_CARD_HEIGHT = VIDEO_CARD_WIDTH * (16 / 9); // 9:16 aspect ratio (portrait)
 
 // Separate component for video preview item to use hooks
 interface VideoPreviewItemProps {
@@ -348,7 +351,7 @@ export default function DareFeedScreen() {
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           pagingEnabled={false}
-          snapToInterval={VIDEO_PREVIEW_HEIGHT + 16}
+          snapToInterval={VIDEO_CARD_HEIGHT + 16}
           decelerationRate="fast"
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -382,8 +385,8 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   videoCard: {
-    width: SCREEN_WIDTH - 16,
-    height: VIDEO_PREVIEW_HEIGHT,
+    width: VIDEO_CARD_WIDTH,
+    height: VIDEO_CARD_HEIGHT,
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: '#1B1B1B',
