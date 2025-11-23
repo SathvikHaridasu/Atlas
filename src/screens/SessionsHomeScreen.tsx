@@ -3,21 +3,45 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   Modal,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Swipeable } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useAuth } from '../../contexts/AuthContext';
-import { createSession, getUserSessions, joinSessionWithCode, leaveSession, SessionWithProfile } from '../../lib/sessionService';
+import {
+  createSession,
+  getUserSessions,
+  joinSessionWithCode,
+  leaveSession,
+} from '../../lib/sessionService';
+import { getGroupImageUrl } from '../../lib/storageService';
+
+interface Session {
+  id: string;
+  name: string;
+  status: string;
+  created_by: string;
+  code: string; // Database column is 'code'
+  join_code?: string; // Alias for compatibility
+  week_start?: string;
+  week_end?: string;
+}
+
+interface SessionWithAvatar extends Session {
+  groupImageUrl?: string | null;
+}
+
+// Alias to keep existing SessionWithProfile references working
+type SessionWithProfile = SessionWithAvatar;
 
 export default function SessionsHomeScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -41,7 +65,16 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
     try {
       const userSessions = await getUserSessions(user.id);
-      setSessions(userSessions);
+
+      // Load group images for each session
+      const sessionsWithAvatars: SessionWithAvatar[] = await Promise.all(
+        userSessions.map(async (session: Session) => {
+          const groupImageUrl = await getGroupImageUrl(session.id);
+          return { ...session, groupImageUrl };
+        })
+      );
+
+      setSessions(sessionsWithAvatars);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -85,7 +118,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
   const handleJoinSubmit = async () => {
     // Normalize the code: trim whitespace, convert to uppercase
     const normalizedCode = joinCode.trim().toUpperCase();
-    
+
     // Validate exactly 6 characters
     if (normalizedCode.length !== 6) {
       Alert.alert('Error', 'Join code must be exactly 6 characters');
@@ -105,7 +138,10 @@ export default function SessionsHomeScreen({ navigation }: any) {
       navigation.navigate('SessionLobby', { sessionId: session.id });
       loadSessions(); // Refresh list
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to join chat. Please check the code and try again.');
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to join chat. Please check the code and try again.'
+      );
     } finally {
       setModalLoading(false);
     }
@@ -124,30 +160,26 @@ export default function SessionsHomeScreen({ navigation }: any) {
     // Close swipeable if open
     swipeableRefs.current[chat.id]?.close();
 
-    Alert.alert(
-      'Leave Chat',
-      `Are you sure you want to leave "${chat.name}"?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    Alert.alert('Leave Chat', `Are you sure you want to leave "${chat.name}"?`, [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Leave',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await leaveSession(chat.id, user.id);
+            // Remove from local list
+            setSessions((prev) => prev.filter((s) => s.id !== chat.id));
+          } catch (error: any) {
+            console.error('Failed to leave chat', error);
+            Alert.alert('Error', error.message || 'Could not leave chat.');
+          }
         },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await leaveSession(chat.id, user.id);
-              // Remove from local list
-              setSessions((prev) => prev.filter((s) => s.id !== chat.id));
-            } catch (error: any) {
-              console.error('Failed to leave chat', error);
-              Alert.alert('Error', error.message || 'Could not leave chat.');
-            }
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   const getSessionInitial = (name: string): string => {
@@ -159,8 +191,14 @@ export default function SessionsHomeScreen({ navigation }: any) {
     try {
       const startDate = new Date(start);
       const endDate = new Date(end);
-      const startFormatted = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const endFormatted = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const startFormatted = startDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      const endFormatted = endDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
       return `${startFormatted} - ${endFormatted}`;
     } catch {
       return `${start} - ${end}`;
@@ -168,17 +206,14 @@ export default function SessionsHomeScreen({ navigation }: any) {
   };
 
   const renderRightActions = (session: SessionWithProfile) => (
-    <TouchableOpacity
-      style={styles.swipeDelete}
-      onPress={() => handleLeaveChat(session)}
-    >
+    <TouchableOpacity style={styles.swipeDelete} onPress={() => handleLeaveChat(session)}>
       <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
       <Text style={styles.swipeDeleteText}>Leave</Text>
     </TouchableOpacity>
   );
 
   const renderChatItem = ({ item }: { item: SessionWithProfile }) => {
-    const avatarUrl = item.profiles?.avatar_url;
+    const avatarUrl = item.groupImageUrl || null;
     const initial = getSessionInitial(item.name);
     const dateRange = formatDateRange(item.week_start, item.week_end);
 
@@ -200,7 +235,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
           {/* Left avatar */}
           <View style={styles.avatarContainer}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} contentFit="cover" />
             ) : (
               <View style={styles.avatarFallback}>
                 <Text style={styles.avatarInitial}>{initial}</Text>
@@ -237,7 +272,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" />
-      
+
       <View style={styles.container}>
         <Text style={styles.sectionTitle}>Your Chats</Text>
 
@@ -282,7 +317,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
       <Modal
         visible={createModalVisible}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setCreateModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
@@ -306,7 +341,11 @@ export default function SessionsHomeScreen({ navigation }: any) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalPrimaryButton, modalLoading && styles.buttonDisabled]}
+                style={[
+                  styles.modalButton,
+                  styles.modalPrimaryButton,
+                  modalLoading && styles.buttonDisabled,
+                ]}
                 onPress={handleCreateSubmit}
                 disabled={modalLoading}
               >
@@ -325,7 +364,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
       <Modal
         visible={joinModalVisible}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setJoinModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
@@ -351,7 +390,11 @@ export default function SessionsHomeScreen({ navigation }: any) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalPrimaryButton, modalLoading && styles.buttonDisabled]}
+                style={[
+                  styles.modalButton,
+                  styles.modalPrimaryButton,
+                  modalLoading && styles.buttonDisabled,
+                ]}
                 onPress={handleJoinSubmit}
                 disabled={modalLoading || joinCode.trim().length !== 6}
               >
@@ -454,6 +497,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   chatTextContainer: {
+    flex: 1,
+  },
+  // Legacy session styles (kept to avoid changing anything else, even if unused now)
+  sessionItem: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sessionItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sessionAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sessionAvatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: '#03CA59',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sessionAvatarInitial: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  sessionInfo: {
     flex: 1,
   },
   chatName: {
