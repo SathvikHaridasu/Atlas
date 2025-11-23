@@ -11,15 +11,17 @@ import {
   View
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { createSession, joinSession } from '../../lib/sessionService';
-import { supabase } from '../../lib/supabaseClient';
+import { createSession, getUserSessions, joinSessionWithCode } from '../../lib/sessionService';
 
 interface Session {
   id: string;
   name: string;
-  code: string;
-  week_start: string;
-  week_end: string;
+  status: string;
+  created_by: string;
+  code: string; // Database column is 'code'
+  join_code?: string; // Alias for compatibility
+  week_start?: string;
+  week_end?: string;
 }
 
 export default function SessionsHomeScreen({ navigation }: any) {
@@ -29,9 +31,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [joinModalVisible, setJoinModalVisible] = useState(false);
   const [sessionName, setSessionName] = useState('');
-  const [sessionPassword, setSessionPassword] = useState('');
   const [joinCode, setJoinCode] = useState('');
-  const [joinPassword, setJoinPassword] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
@@ -44,31 +44,8 @@ export default function SessionsHomeScreen({ navigation }: any) {
     if (!user) return;
 
     try {
-      // First get session IDs user is member of
-      const { data: memberData, error: memberError } = await supabase
-        .from('session_members')
-        .select('session_id')
-        .eq('user_id', user.id);
-
-      if (memberError) throw memberError;
-
-      if (!memberData || memberData.length === 0) {
-        setSessions([]);
-        return;
-      }
-
-      const sessionIds = memberData.map(m => m.session_id);
-
-      // Then get sessions
-      const { data, error } = await supabase
-        .from('sessions')
-        .select('*')
-        .in('id', sessionIds);
-
-      if (error) throw error;
-
-      const sessionData = data as Session[];
-      setSessions(sessionData || []);
+      const userSessions = await getUserSessions(user.id);
+      setSessions(userSessions);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -85,8 +62,8 @@ export default function SessionsHomeScreen({ navigation }: any) {
   };
 
   const handleCreateSubmit = async () => {
-    if (!sessionName.trim() || !sessionPassword.trim()) {
-      Alert.alert('Error', 'Please enter session name and password');
+    if (!sessionName.trim()) {
+      Alert.alert('Error', 'Please enter session name');
       return;
     }
 
@@ -97,22 +74,25 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
     setModalLoading(true);
     try {
-      const session = await createSession(user.id, sessionName.trim(), sessionPassword.trim());
+      const session = await createSession(sessionName.trim());
       setCreateModalVisible(false);
       setSessionName('');
-      setSessionPassword('');
       navigation.navigate('SessionLobby', { sessionId: session.id });
       loadSessions(); // Refresh list
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to create session');
     } finally {
       setModalLoading(false);
     }
   };
 
   const handleJoinSubmit = async () => {
-    if (joinCode.length !== 6 || !joinPassword.trim()) {
-      Alert.alert('Error', 'Please enter a valid 6-character code and password');
+    // Normalize the code: trim whitespace, convert to uppercase
+    const normalizedCode = joinCode.trim().toUpperCase();
+    
+    // Validate exactly 6 characters
+    if (normalizedCode.length !== 6) {
+      Alert.alert('Error', 'Join code must be exactly 6 characters');
       return;
     }
 
@@ -123,14 +103,13 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
     setModalLoading(true);
     try {
-      const session = await joinSession(user.id, joinCode.toUpperCase(), joinPassword.trim());
+      const session = await joinSessionWithCode(user.id, normalizedCode);
       setJoinModalVisible(false);
       setJoinCode('');
-      setJoinPassword('');
       navigation.navigate('SessionLobby', { sessionId: session.id });
       loadSessions(); // Refresh list
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to join session. Please check the code and try again.');
     } finally {
       setModalLoading(false);
     }
@@ -171,7 +150,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
             onPress={() => handleSessionPress(item)}
           >
             <Text style={styles.sessionName}>{item.name}</Text>
-            <Text style={styles.sessionCode}>Code: {item.code}</Text>
+            <Text style={styles.sessionCode}>Join Code: {item.code || item.join_code}</Text>
             <Text style={styles.sessionDates}>
               {item.week_start} - {item.week_end}
             </Text>
@@ -198,14 +177,6 @@ export default function SessionsHomeScreen({ navigation }: any) {
               placeholder="Session Name"
               value={sessionName}
               onChangeText={setSessionName}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={sessionPassword}
-              onChangeText={setSessionPassword}
-              secureTextEntry
             />
 
             <View style={styles.modalButtons}>
@@ -245,19 +216,11 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
             <TextInput
               style={styles.input}
-              placeholder="6-character code"
+              placeholder="6-character join code"
               value={joinCode}
               onChangeText={(text) => setJoinCode(text.toUpperCase().slice(0, 6))}
               maxLength={6}
               autoCapitalize="characters"
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={joinPassword}
-              onChangeText={setJoinPassword}
-              secureTextEntry
             />
 
             <View style={styles.modalButtons}>
@@ -271,7 +234,7 @@ export default function SessionsHomeScreen({ navigation }: any) {
               <TouchableOpacity
                 style={[styles.modalButton, modalLoading && styles.buttonDisabled]}
                 onPress={handleJoinSubmit}
-                disabled={modalLoading || joinCode.length !== 6}
+                disabled={modalLoading || joinCode.trim().length !== 6}
               >
                 {modalLoading ? (
                   <ActivityIndicator color="#FFFFFF" />

@@ -20,6 +20,8 @@ import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
 import RunScreen from '../screens/RunScreen';
 import SessionLobbyScreen from '../screens/SessionLobbyScreen';
+import SessionLeaderboardScreen from '../screens/SessionLeaderboardScreen';
+import SessionSettingsScreen from '../screens/SessionSettingsScreen';
 import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
@@ -149,6 +151,20 @@ export default function RootNavigator() {
           <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
           <Stack.Screen name="JoinSession" component={JoinSessionScreen} />
           <Stack.Screen name="SessionLobby" component={SessionLobbyScreen} />
+          <Stack.Screen
+            name="SessionLeaderboard"
+            component={SessionLeaderboardScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="SessionSettings"
+            component={SessionSettingsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
           <Stack.Screen
             name="Challenges"
             component={ChallengesScreen}

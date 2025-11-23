@@ -16,12 +16,11 @@ import { createSession } from '../../lib/sessionService';
 export default function CreateSessionScreen({ navigation }: any) {
   const { user } = useAuth();
   const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async () => {
-    if (!name.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter session name and password');
+    if (!name.trim()) {
+      Alert.alert('Error', 'Please enter session name');
       return;
     }
 
@@ -32,10 +31,10 @@ export default function CreateSessionScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const session = await createSession(user.id, name.trim(), password.trim());
+      const session = await createSession(name.trim());
       navigation.navigate('SessionLobby', { sessionId: session.id });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to create session');
     } finally {
       setLoading(false);
     }
@@ -56,16 +55,7 @@ export default function CreateSessionScreen({ navigation }: any) {
           value={name}
           onChangeText={setName}
           editable={!loading}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#9CA3AF"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          editable={!loading}
+          autoCapitalize="words"
         />
 
         <TouchableOpacity
