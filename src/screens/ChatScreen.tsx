@@ -39,7 +39,7 @@ export default function ChatScreen() {
     },
     {
       id: '2',
-      text: 'I\'m in! Let\'s do a 5k route.',
+      text: "I'm in! Let's do a 5k route.",
       sender: 'You',
       senderId: user?.id || 'me',
       timestamp: new Date(Date.now() - 3300000),
@@ -87,7 +87,14 @@ export default function ChatScreen() {
       {!item.isMine && (
         <Text style={[styles.senderName, { color: theme.mutedText }]}>{item.sender}</Text>
       )}
-      <View style={[styles.messageBubble, item.isMine ? [styles.bubbleMine, { backgroundColor: theme.accent }] : [styles.bubbleOther, { backgroundColor: theme.card }]]}>
+      <View
+        style={[
+          styles.messageBubble,
+          item.isMine
+            ? [styles.bubbleMine, { backgroundColor: theme.accent }]
+            : [styles.bubbleOther, { backgroundColor: theme.card }],
+        ]}
+      >
         <Text style={[styles.messageText, item.isMine ? styles.textMine : { color: theme.text }]}>
           {item.text}
         </Text>
@@ -144,7 +151,12 @@ export default function ChatScreen() {
             />
 
             {/* Fixed Bottom Input Bar */}
-            <View style={[styles.inputContainer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+            <View
+              style={[
+                styles.inputContainer,
+                { backgroundColor: theme.card, borderTopColor: theme.border },
+              ]}
+            >
               <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
                 <Ionicons name="attach-outline" size={24} color={theme.mutedText} />
               </TouchableOpacity>
@@ -158,7 +170,11 @@ export default function ChatScreen() {
                 maxLength={500}
               />
               <TouchableOpacity
-                style={[styles.sendButton, { backgroundColor: theme.border }, inputText.trim() && [styles.sendButtonActive, { backgroundColor: theme.accent }]]}
+                style={[
+                  styles.sendButton,
+                  { backgroundColor: theme.border },
+                  inputText.trim() && [styles.sendButtonActive, { backgroundColor: theme.accent }],
+                ]}
                 onPress={handleSend}
                 activeOpacity={0.8}
                 disabled={!inputText.trim()}
