@@ -52,6 +52,9 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
   const sessionId = route?.params?.sessionId;
   const messagesListRef = useRef<FlatList>(null);
 
+  // Log sessionId to verify it's being passed correctly
+  console.log("[ChatScreen] sessionId:", sessionId);
+
   if (!sessionId) {
     return (
       <View style={styles.center}>
@@ -61,6 +64,7 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
   }
 
   // Use the live messages hook
+  // Make sure we're using the hook's messages state, not a local duplicate
   const { messages, setMessages, loading: messagesLoading, error: messagesError } = useSessionMessages(sessionId);
 
   const [session, setSession] = useState<Session | null>(null);

@@ -85,24 +85,25 @@ export function useSessionMessages(sessionId: string | null) {
 
     // Realtime subscription for new messages
     // 
-    // IMPORTANT: Realtime must be enabled on the `messages` table in Supabase dashboard:
-    // 1. Go to Supabase Dashboard → Database → Replication
-    // 2. Find the `messages` table in the list
-    // 3. Toggle "Enable Realtime" to ON (should show a checkmark)
+    // NOTE:
+    // For this Realtime subscription to deliver INSERT events from other users:
+    // 1) Realtime must be enabled for the `messages` table in Supabase dashboard
+    //    (Database → Replication → Realtime).
+    // 2) RLS policies on `messages` must allow the current user to SELECT rows
+    //    for this `session_id`. If RLS blocks SELECT, Realtime will not send events.
     // 
     // Check console logs for "[Realtime] INSERT received" to confirm events are firing
-    const channelName = `messages:session:${sessionId}`;
-    console.log("[useSessionMessages] Setting up Realtime subscription for channel:", channelName);
+    console.log("[Realtime] subscribing to messages for session:", sessionId);
     
     const channel = supabase
-      .channel(channelName)
+      .channel(`messages:session:${sessionId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `session_id=eq.${sessionId}`,
+          filter: `session_id=eq.${sessionId}`, // must match DB column exactly
         },
         (payload) => {
           console.log("[Realtime] INSERT received", payload);
@@ -120,10 +121,12 @@ export function useSessionMessages(sessionId: string | null) {
           }
 
           // Directly use payload.new to add message to state
+          // Deduplication ensures optimistic inserts don't cause duplicates
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMessage.id)) {
+              // Already have it (e.g., optimistic insert or duplicate event)
               console.log("[Realtime] Message already exists, skipping duplicate", newMessage.id);
-              return prev; // dedupe
+              return prev;
             }
             console.log("[Realtime] Adding new message to state", {
               id: newMessage.id,
@@ -148,6 +151,7 @@ export function useSessionMessages(sessionId: string | null) {
       });
 
     return () => {
+      console.log("[Realtime] Cleaning up subscription for session:", sessionId);
       isMounted = false;
       supabase.removeChannel(channel);
     };
