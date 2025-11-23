@@ -32,7 +32,7 @@ export default function CreateSessionScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const session = await createSession(user.id, name.trim(), password.trim());
+      const session = await createSession(user.id, name.trim());
       navigation.navigate('SessionLobby', { sessionId: session.id });
     } catch (error: any) {
       Alert.alert('Error', error.message);

@@ -11,17 +11,15 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { joinSession } from '../../lib/sessionService';
 
 export default function JoinSessionScreen({ navigation }: any) {
   const { user } = useAuth();
   const [code, setCode] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleJoin = async () => {
-    if (code.length !== 6 || !password.trim()) {
-      Alert.alert('Error', 'Please enter a valid 6-character code and password');
+    if (code.length !== 8) {
+      Alert.alert('Error', 'Please enter a valid 8-character join code');
       return;
     }
 
@@ -32,7 +30,7 @@ export default function JoinSessionScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const session = await joinSession(user.id, code.toUpperCase(), password.trim());
+      const session = await joinSessionWithCode(user.id, code.toUpperCase());
       navigation.navigate('SessionLobby', { sessionId: session.id });
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -51,29 +49,19 @@ export default function JoinSessionScreen({ navigation }: any) {
 
         <TextInput
           style={styles.input}
-          placeholder="Enter 6-character code"
+          placeholder="Enter 8-character join code"
           placeholderTextColor="#9CA3AF"
           value={code}
-          onChangeText={(text) => setCode(text.toUpperCase().slice(0, 6))}
+          onChangeText={(text) => setCode(text.toUpperCase().slice(0, 8))}
           autoCapitalize="characters"
-          maxLength={6}
-          editable={!loading}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#9CA3AF"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
+          maxLength={8}
           editable={!loading}
         />
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleJoin}
-          disabled={loading || code.length !== 6}
+          disabled={loading || code.length !== 8}
           activeOpacity={0.8}
         >
           {loading ? (

@@ -3,11 +3,11 @@ import { supabase } from "./supabaseClient";
 export interface Session {
   id: string;
   name: string;
-  code: string;
-  password: string;
-  creator_id: string;
-  week_start: string;
-  week_end: string;
+  status: string;
+  created_by: string;
+  join_code: string;
+  week_start?: string;
+  week_end?: string;
 }
 
 export interface SessionMember {
@@ -31,11 +31,28 @@ export interface SessionWeekResult {
   chosen_dare_id: string;
 }
 
-export const generateCode = () =>
-  Math.random().toString(36).substring(2, 8).toUpperCase();
+export interface Message {
+  id: string;
+  session_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles?: {
+    username: string;
+  };
+}
 
-export async function createSession(userId: string, name: string, password: string) {
-  const code = generateCode();
+export const generateJoinCode = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+export async function createSession(userId: string, name: string) {
+  const joinCode = generateJoinCode();
 
   const start = new Date();
   const end = new Date();
@@ -46,9 +63,9 @@ export async function createSession(userId: string, name: string, password: stri
     .from("sessions")
     .insert({
       name,
-      code,
-      password,
-      creator_id: userId,
+      join_code: joinCode,
+      status: 'active',
+      created_by: userId,
       week_start: start.toISOString().split("T")[0],
       week_end: end.toISOString().split("T")[0],
     })
@@ -77,6 +94,24 @@ export async function createSession(userId: string, name: string, password: stri
 }
 
 export async function submitDare(userId: string, sessionId: string, dareText: string) {
+  // Ensure user is a member
+  const { data: member } = await supabase
+    .from("session_members")
+    .select("id")
+    .eq("session_id", sessionId)
+    .eq("user_id", userId)
+    .single();
+
+  if (!member) {
+    // Auto-add to members if not already
+    await supabase
+      .from("session_members")
+      .insert({
+        session_id: sessionId,
+        user_id: userId,
+      });
+  }
+
   const { error } = await supabase
     .from("session_dares")
     .insert({
@@ -254,24 +289,99 @@ export async function endOfWeekProcessing(sessionId: string) {
   }
 }
 
-export async function joinSession(userId: string, code: string, password: string) {
-  // 1. Find session by code
+export async function sendMessage(sessionId: string, userId: string, content: string) {
+  // Ensure user is a member
+  const { data: member } = await supabase
+    .from("session_members")
+    .select("id")
+    .eq("session_id", sessionId)
+    .eq("user_id", userId)
+    .single();
+
+  if (!member) {
+    // Auto-add to members if not already
+    await supabase
+      .from("session_members")
+      .insert({
+        session_id: sessionId,
+        user_id: userId,
+      });
+  }
+
+  const { error } = await supabase
+    .from("messages")
+    .insert({
+      session_id: sessionId,
+      user_id: userId,
+      content,
+    });
+
+  if (error) {
+    console.error(error);
+    throw new Error("Failed to send message.");
+  }
+}
+
+export async function getMessages(sessionId: string): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(`
+      *,
+      profiles (
+        username
+      )
+    `)
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    throw new Error("Failed to get messages.");
+  }
+
+  return data || [];
+}
+
+export function listenToMessages(sessionId: string, setMessages: (messages: Message[]) => void) {
+  // Initial load
+  getMessages(sessionId).then(setMessages).catch(console.error);
+
+  const channel = supabase
+    .channel(`messages_${sessionId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `session_id=eq.${sessionId}`,
+      },
+      async (payload) => {
+        // Get updated messages list
+        const messages = await getMessages(sessionId);
+        setMessages(messages);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+export async function joinSessionWithCode(userId: string, joinCode: string) {
+  // 1. Find session by join_code
   const { data: session, error: findError } = await supabase
     .from("sessions")
     .select("*")
-    .eq("code", code.toUpperCase())
+    .eq("join_code", joinCode.toUpperCase())
     .single();
 
   if (findError || !session) {
     throw new Error("Session not found.");
   }
 
-  // 2. Check password
-  if (session.password !== password) {
-    throw new Error("Incorrect password.");
-  }
-
-  // 2. Add user to session_members
+  // 2. Add user to session_members (if not already a member)
   const { error: memberError } = await supabase
     .from("session_members")
     .insert({
@@ -280,8 +390,44 @@ export async function joinSession(userId: string, code: string, password: string
     });
 
   if (memberError) {
-    throw new Error("You already joined or cannot join this session.");
+    // Check if it's a duplicate key error (user already joined)
+    if (memberError.code === '23505') {
+      throw new Error("You have already joined this session.");
+    }
+    throw new Error("Failed to join session.");
   }
 
   return session;
+}
+
+export async function getUserSessions(userId: string): Promise<Session[]> {
+  // Get session IDs where user is a member
+  const { data: memberData, error: memberError } = await supabase
+    .from("session_members")
+    .select("session_id")
+    .eq("user_id", userId);
+
+  if (memberError) {
+    console.error(memberError);
+    throw new Error("Failed to get user sessions.");
+  }
+
+  if (!memberData || memberData.length === 0) {
+    return [];
+  }
+
+  const sessionIds = memberData.map(m => m.session_id);
+
+  // Get sessions
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("*")
+    .in("id", sessionIds);
+
+  if (error) {
+    console.error(error);
+    throw new Error("Failed to get sessions.");
+  }
+
+  return data || [];
 }
