@@ -1,11 +1,14 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Color constants matching the dark Instagram DM theme with green accent
 const COLORS = {
   backgroundDark: '#020617', // Dark background
-  bubbleOwn: '#03CA59', // Brand green for own messages
-  bubbleOther: '#262b35', // Dark gray for other messages
+  bubbleOwnStart: '#03CA59', // Brand green for own messages (gradient start)
+  bubbleOwnEnd: '#16DB7E', // Lighter green for own messages (gradient end)
+  bubbleOtherStart: '#2563EB', // Blue for received messages (gradient start)
+  bubbleOtherEnd: '#4F46E5', // Purple-blue for received messages (gradient end)
   textWhite: '#FFFFFF',
   textLightGray: '#E5E7EB',
   textMuted: '#9CA3AF',
@@ -62,22 +65,32 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   isOwn, 
   senderName 
 }) => {
+  // Gradient colors for own vs received messages
+  const bubbleColors = isOwn
+    ? [COLORS.bubbleOwnStart, COLORS.bubbleOwnEnd] // Green gradient for own messages
+    : [COLORS.bubbleOtherStart, COLORS.bubbleOtherEnd]; // Blue gradient for received messages
+
   return (
-    <View style={[styles.container, isOwn ? styles.containerOwn : styles.containerOther]}>
+    <View style={[styles.messageRow, isOwn ? styles.messageRowOwn : styles.messageRowOther]}>
       {/* Username above bubble (only show for other users) */}
       {!isOwn && (
         <Text style={styles.username}>{senderName}</Text>
       )}
       
-      {/* Message Bubble */}
-      <View style={[
-        styles.bubble,
-        isOwn ? styles.bubbleOwn : styles.bubbleOther
-      ]}>
+      {/* Message Bubble with Gradient */}
+      <LinearGradient
+        colors={bubbleColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.bubbleBase,
+          isOwn ? styles.bubbleOwn : styles.bubbleOther
+        ]}
+      >
         <Text style={styles.messageText}>
           {message.content}
         </Text>
-      </View>
+      </LinearGradient>
       
       {/* Timestamp below bubble */}
       <Text style={[
@@ -91,16 +104,16 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
+  messageRow: {
     marginVertical: 4,
-    alignSelf: 'flex-start',
-    maxWidth: '70%',
+    paddingHorizontal: 12,
+    maxWidth: '72%',
   },
-  containerOwn: {
+  messageRowOwn: {
     alignSelf: 'flex-end',
     alignItems: 'flex-end',
   },
-  containerOther: {
+  messageRowOther: {
     alignSelf: 'flex-start',
     alignItems: 'flex-start',
   },
@@ -108,20 +121,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: COLORS.textLightGray,
-    marginBottom: 4,
+    marginBottom: 2,
     marginLeft: 4,
   },
-  bubble: {
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+  bubbleBase: {
     maxWidth: '100%',
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   bubbleOwn: {
-    backgroundColor: COLORS.bubbleOwn,
+    borderBottomRightRadius: 4,
   },
   bubbleOther: {
-    backgroundColor: COLORS.bubbleOther,
+    borderBottomLeftRadius: 4,
   },
   messageText: {
     fontSize: 15,
@@ -131,7 +144,7 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 10,
     color: COLORS.textTimestamp,
-    marginTop: 4,
+    marginTop: 2,
   },
   timestampOwn: {
     textAlign: 'right',

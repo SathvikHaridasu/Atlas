@@ -175,11 +175,11 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.contentWrapper}>
@@ -267,7 +267,12 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
                 {sendingMessage ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.sendButtonText}>Send</Text>
+                  <Ionicons
+                    name="paper-plane-outline"
+                    size={18}
+                    color="#FFFFFF"
+                    style={styles.sendIcon}
+                  />
                 )}
               </TouchableOpacity>
             </View>
@@ -341,7 +346,7 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     paddingTop: 12,
-    paddingBottom: 80,
+    paddingBottom: 12,
     paddingHorizontal: 16,
   },
   emptyContainer: {
@@ -370,6 +375,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
+    paddingBottom: 4,
     backgroundColor: '#050816',
     borderTopWidth: 1,
     borderTopColor: '#1F2937',
@@ -392,19 +398,19 @@ const styles = StyleSheet.create({
   sendButton: {
     backgroundColor: '#03CA59',
     borderRadius: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 40,
-    minWidth: 70,
+    minWidth: 40,
+    width: 40,
+    height: 40,
   },
   sendButtonDisabled: {
     opacity: 0.5,
   },
-  sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+  sendIcon: {
+    transform: [{ rotate: '45deg' }],
   },
 });
