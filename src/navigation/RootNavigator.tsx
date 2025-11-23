@@ -4,11 +4,7 @@
 // npm install @react-navigation/native-stack @react-navigation/bottom-tabs
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-
-import { NavigationContainer } from '@react-navigation/native';
-// =======
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
-// >>>>>>> main
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -16,29 +12,17 @@ import { enableScreens } from 'react-native-screens';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 
-
-import ChatScreen from '../screens/ChatScreen';
-// =======
 import ChallengesScreen from '../screens/ChallengesScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
-// >>>>>>> main
 import HomeScreen from '../screens/HomeScreen';
-
-import MasterMapScreen from '../screens/MasterMapScreen';
-
 import JoinSessionScreen from '../screens/JoinSessionScreen';
-// >>>>>>> main
+import MasterMapScreen from '../screens/MasterMapScreen';
 import RunScreen from '../screens/RunScreen';
-
-import SignInScreen from '../screens/SignInScreen';
-import SettingsNavigator from './SettingsNavigator';
-// =======
 import SessionLobbyScreen from '../screens/SessionLobbyScreen';
 import SessionsHomeScreen from '../screens/SessionsHomeScreen';
-import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
-// >>>>>>> main
+import SettingsNavigator from './SettingsNavigator';
 
 // Enable native screen optimizations
 enableScreens(true);
