@@ -68,14 +68,7 @@ export default function SessionSettingsScreen({ route, navigation: routeNavigati
     await copyToClipboard(sessionCode, 'Join code');
   };
 
-  const handleViewLeaderboard = () => {
-    if (sessionId) {
-      navigation.navigate('SessionLeaderboard', {
-        sessionId,
-        sessionName,
-      });
-    }
-  };
+  // Removed handleViewLeaderboard - now accessible from chat header
 
   const handleViewMembers = () => {
     // Show member count in alert for now
@@ -127,14 +120,7 @@ export default function SessionSettingsScreen({ route, navigation: routeNavigati
     return name.charAt(0).toUpperCase();
   };
 
-  // Navigate to in-app CameraScreen for uploading dares
-  const handleUploadDare = () => {
-    if (!sessionId) {
-      Alert.alert('Error', 'Session ID is required to upload a dare.');
-      return;
-    }
-    navigation.navigate('Camera', { sessionId });
-  };
+  // Removed handleUploadDare - now accessible from chat header
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -196,30 +182,6 @@ export default function SessionSettingsScreen({ route, navigation: routeNavigati
           )}
 
           <View style={styles.divider} />
-
-          {/* Upload Dare */}
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={handleUploadDare}
-          >
-            <View style={styles.settingsRowLeft}>
-              <Ionicons name="camera-outline" size={24} color="#FFFFFF" />
-              <Text style={styles.settingsRowTitle}>Upload Dare</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          {/* View Leaderboard */}
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={handleViewLeaderboard}
-          >
-            <View style={styles.settingsRowLeft}>
-              <Ionicons name="trophy-outline" size={24} color="#FFFFFF" />
-              <Text style={styles.settingsRowTitle}>View Leaderboard</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
 
           {/* View Members */}
           <TouchableOpacity
