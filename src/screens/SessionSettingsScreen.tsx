@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
-import { leaveSession as leaveSessionService, getSessionMembers, SessionMember } from '../../lib/sessionService';
 import { copyToClipboard } from '../../lib/clipboard';
+import { getSessionMembers, leaveSession as leaveSessionService, SessionMember } from '../../lib/sessionService';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 
 interface Props {
@@ -45,6 +45,7 @@ export default function SessionSettingsScreen({ route, navigation: routeNavigati
   const [members, setMembers] = useState<SessionMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [leaving, setLeaving] = useState(false);
+  const [muteNotifications, setMuteNotifications] = useState<boolean>(false);
 
   useEffect(() => {
     if (sessionId) {
@@ -199,15 +200,20 @@ export default function SessionSettingsScreen({ route, navigation: routeNavigati
 
           <View style={styles.divider} />
 
-          {/* Mute Notifications (Placeholder) */}
+          {/* Mute Notifications */}
           <View style={styles.settingsRow}>
             <View style={styles.settingsRowLeft}>
               <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
               <Text style={styles.settingsRowTitle}>Mute Notifications</Text>
             </View>
-            <View style={styles.toggle}>
-              <View style={styles.toggleCircle} />
-            </View>
+            <Switch
+              value={muteNotifications}
+              onValueChange={(value) => {
+                setMuteNotifications(value);
+              }}
+              trackColor={{ false: 'rgba(148,163,184,0.4)', true: '#03CA59' }}
+              thumbColor="#FFFFFF"
+            />
           </View>
 
           {/* Report Session (Placeholder) */}
