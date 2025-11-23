@@ -1,5 +1,6 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SaveVideoButton from '../components/SaveVideoButton';
 import { useSaveVideo } from '../hooks/useSaveVideo';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -23,8 +25,12 @@ type CameraFacing = 'front' | 'back';
 type FlashMode = 'auto' | 'on' | 'off';
 type Duration = 15 | 30 | 60;
 
+type CameraScreenRouteProp = RouteProp<RootStackParamList, 'Camera'>;
+
 export default function CameraScreen() {
   const navigation = useNavigation();
+  const route = useRoute<CameraScreenRouteProp>();
+  const sessionId = route.params?.sessionId;
   const [permission, requestPermission] = useCameraPermissions();
   const { saveVideo } = useSaveVideo();
 
