@@ -257,6 +257,27 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
     } as never);
   };
 
+  const handleOpenCamera = () => {
+    if (!sessionId) {
+      Alert.alert('Error', 'Session ID is required to upload a dare video.');
+      return;
+    }
+    (navigation as any).navigate('Camera', { sessionId });
+  };
+
+  const handleOpenSettings = () => {
+    if (!sessionId || !sessionName) {
+      Alert.alert('Error', 'Session information is missing.');
+      return;
+    }
+    // Navigate to SessionSettings - sessionCode will be fetched in the settings screen if needed
+    (navigation as any).navigate('SessionSettings', {
+      sessionId,
+      sessionName,
+      sessionCode: '', // Default empty, can be fetched from session data if needed
+    });
+  };
+
   const renderMessage = ({ item }: { item: Message }) => (
     <View style={[styles.messageContainer, item.isMine ? styles.messageRight : styles.messageLeft]}>
       {!item.isMine && (
@@ -326,24 +347,47 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
                     </View>
                   )}
                   <View style={styles.headerTextContent}>
-                    <Text style={[styles.groupName, { color: theme.text }]}>
+                    <Text 
+                      style={[styles.groupName, { color: theme.text }]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
                       {sessionName || 'Neighbourhood Runners'}
                     </Text>
-                    <Text style={[styles.memberCount, { color: theme.mutedText }]}>12 members online</Text>
+                    <Text 
+                      style={[styles.memberCount, { color: theme.mutedText }]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      12 members online
+                    </Text>
                   </View>
                 </View>
               </View>
               <View style={styles.headerRight}>
                 <TouchableOpacity
-                  style={[styles.leaderboardButton, { backgroundColor: theme.border }]}
+                  style={styles.headerIconButton}
+                  onPress={handleOpenCamera}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="camera-outline" size={24} color={theme.accent} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.headerIconButton}
                   onPress={handleViewLeaderboard}
                   activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <MaterialIcons name="leaderboard" size={18} color={theme.text} />
-                  <Text style={[styles.leaderboardButtonText, { color: theme.text }]}>Leaderboard</Text>
+                  <Ionicons name="trophy-outline" size={24} color={theme.accent} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.infoButton} activeOpacity={0.7}>
-                  <Ionicons name="information-circle-outline" size={24} color={theme.mutedText} />
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  onPress={handleOpenSettings}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="settings-outline" size={24} color={theme.mutedText} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -466,11 +510,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+    minHeight: 56,
+    overflow: 'visible', // Ensure icons aren't clipped
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    flexShrink: 1,
+    marginRight: 8,
+    minWidth: 0, // Allow shrinking below content size
   },
   avatarStack: {
     flexDirection: 'row',
@@ -499,8 +548,10 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 0, // Allow shrinking below content size
   },
   groupAvatarSmall: {
     width: 40,
@@ -525,10 +576,13 @@ const styles = StyleSheet.create({
   },
   headerTextContent: {
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0, // Allow shrinking below content size
   },
   groupName: {
     fontSize: 16,
     fontWeight: '700',
+    flexShrink: 1,
   },
   memberCount: {
     fontSize: 12,
@@ -537,22 +591,21 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'flex-end',
+    marginLeft: 8,
+    flexShrink: 0,
+    flexGrow: 0,
+    zIndex: 10,
+    width: 'auto', // Explicit width to prevent shrinking
   },
-  leaderboardButton: {
-    flexDirection: 'row',
+  headerIconButton: {
+    padding: 8,
+    marginLeft: 8,
+    minWidth: 40,
+    minHeight: 40,
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
-  },
-  leaderboardButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  infoButton: {
-    padding: 4,
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   challengePill: {
     flexDirection: 'row',

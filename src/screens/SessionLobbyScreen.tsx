@@ -268,6 +268,46 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
     return name.charAt(0).toUpperCase();
   };
 
+  // Handler functions for header icons
+  const handleOpenCamera = () => {
+    if (!sessionId) {
+      Alert.alert('Error', 'Session ID is required to upload a dare video.');
+      return;
+    }
+    if (navigation) {
+      navigation.navigate('Camera', { sessionId });
+    }
+  };
+
+  const handleViewLeaderboard = () => {
+    if (!sessionId || !session) {
+      Alert.alert('Error', 'Session information is missing.');
+      return;
+    }
+    if (navigation) {
+      navigation.navigate('SessionLeaderboard', {
+        sessionId,
+        sessionName: session.name,
+      });
+    }
+  };
+
+  const handleOpenSettings = () => {
+    if (!sessionId || !session) {
+      Alert.alert('Error', 'Session information is missing.');
+      return;
+    }
+    if (navigation) {
+      navigation.navigate('SessionSettings', {
+        sessionId,
+        sessionName: session.name,
+        sessionCode: session.code || session.join_code || '',
+        sessionWeekStart: session.week_start || '',
+        sessionWeekEnd: session.week_end || '',
+      });
+    }
+  };
+
   // Show loading state while initial data is loading or messages are loading
   if (loading || messagesLoading) {
     return (
@@ -341,22 +381,32 @@ export default function SessionLobbyScreen({ route, navigation }: Props) {
                 </Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.headerButton}
-                onPress={() => {
-                  if (navigation) {
-                    navigation.navigate('SessionSettings', {
-                      sessionId,
-                      sessionName: session.name,
-                      sessionCode: session.code || session.join_code || '',
-                      sessionWeekStart: session.week_start || '',
-                      sessionWeekEnd: session.week_end || '',
-                    });
-                  }
-                }}
-              >
-                <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
+              <View style={styles.headerRight}>
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  onPress={handleOpenCamera}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="camera-outline" size={22} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  onPress={handleViewLeaderboard}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="trophy-outline" size={22} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  onPress={handleOpenSettings}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Chat Section - Full-bleed Dark */}
@@ -480,17 +530,37 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    minHeight: 56, // Ensure minimum height
+    overflow: 'visible', // Prevent clipping
   },
   headerButton: {
     padding: 6,
     minWidth: 36,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexShrink: 0,
+    flexGrow: 0,
+    marginLeft: 8,
+  },
+  headerIconButton: {
+    padding: 6,
+    marginLeft: 4,
+    minWidth: 36,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerCenter: {
     flex: 1,
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 8,
+    minWidth: 0, // Allow shrinking below content size
   },
   avatarCircle: {
     width: 32,
@@ -545,6 +615,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0, // Allow shrinking
   },
   chatSection: {
     flex: 1,
