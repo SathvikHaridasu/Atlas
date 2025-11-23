@@ -1,4 +1,6 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
 import React, { useState } from "react";
 import {
@@ -17,13 +19,35 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabaseClient";
+
+import type { SettingsStackParamList } from "../navigation/SettingsNavigator";
+
+type ThemeOption = "system" | "light" | "dark";
+
+// Color palette
+const COLORS = {
+  accent: "#03CA59",
+  bgDark: "#020202",
+  cardDark: "#101010",
+  borderDark: "rgba(3, 202, 89, 0.4)",
+  textPrimaryDark: "#F9FAFB",
+  textSecondaryDark: "#9CA3AF",
+};
+// =======
 import { useAppTheme } from "../contexts/ThemeContext";
+// >>>>>>> main
+
+type SettingsScreenNavigationProp = NativeStackNavigationProp<SettingsStackParamList, "Settings">;
 
 interface SettingsScreenProps {}
 
 const SettingsScreen: React.FC<SettingsScreenProps> = () => {
   const { user, profile, signOut } = useAuth();
+
+  const navigation = useNavigation<SettingsScreenNavigationProp>();
+// =======
   const { theme, isDark, toggleTheme } = useAppTheme();
+// >>>>>>> main
 
   const displayName =
     profile?.full_name ||
@@ -265,7 +289,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.mutedText }]}>Account</Text>
 
-          <TouchableOpacity style={styles.row} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => navigation.navigate("ManageAccount")}
+            activeOpacity={0.7}
+          >
             <View style={styles.rowLeft}>
               <Ionicons name="person-outline" size={20} color={theme.mutedText} />
               <Text style={[styles.rowLabel, { color: theme.text }]}>Manage Account</Text>
