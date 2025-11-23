@@ -15,7 +15,11 @@ import { useAppTheme } from '../contexts/ThemeContext';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
 import HomeScreen from '../screens/HomeScreen';
+
+import MasterMapScreen from '../screens/MasterMapScreen';
+
 import JoinSessionScreen from '../screens/JoinSessionScreen';
+// >>>>>>> main
 import RunScreen from '../screens/RunScreen';
 import SessionLobbyScreen from '../screens/SessionLobbyScreen';
 import SessionsHomeScreen from '../screens/SessionsHomeScreen';
@@ -138,6 +142,11 @@ export default function RootNavigator() {
               headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
               headerTintColor: isDark ? '#F9FAFB' : '#111111',
             }}
+          />
+          <Stack.Screen
+            name="MasterMap"
+            component={MasterMapScreen}
+            options={{ headerShown: false }}
           />
         </Stack.Navigator>
       ) : (
