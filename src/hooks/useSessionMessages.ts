@@ -89,15 +89,8 @@ export function useSessionMessages(sessionId: string | null) {
     // 1. Go to Supabase Dashboard → Database → Replication
     // 2. Find the `messages` table in the list
     // 3. Toggle "Enable Realtime" to ON (should show a checkmark)
-    // 4. Verify RLS policies allow SELECT for messages in sessions the user belongs to:
-    //    - Go to Database → Policies → messages table
-    //    - Ensure there's a policy allowing SELECT for users in the same session
-    //    - The policy should check: auth.uid() IN (SELECT user_id FROM session_members WHERE session_id = messages.session_id)
-    //
-    // If messages from other users don't appear:
-    // - Check browser console/React Native logs for "[Realtime] INSERT event received" messages
-    // - If you don't see those logs, the subscription isn't receiving events (check Realtime is enabled)
-    // - If you see the logs but messages don't appear, check RLS policies
+    // 
+    // Check console logs for "[Realtime] INSERT received" to confirm events are firing
     const channelName = `messages:session:${sessionId}`;
     console.log("[useSessionMessages] Setting up Realtime subscription for channel:", channelName);
     
@@ -111,131 +104,46 @@ export function useSessionMessages(sessionId: string | null) {
           table: "messages",
           filter: `session_id=eq.${sessionId}`,
         },
-        async (payload) => {
-          console.log("[Realtime] INSERT event received for messages table", {
-            sessionId,
-            messageId: payload.new.id,
-            userId: payload.new.user_id,
-            payload: payload.new,
-          });
+        (payload) => {
+          console.log("[Realtime] INSERT received", payload);
 
           if (!isMounted) {
             console.log("[Realtime] Component unmounted, ignoring event");
             return;
           }
 
-          try {
-            // Try to fetch the full message with profile data
-            // This might fail if RLS doesn't allow reading yet, so we have a fallback
-            const { data: newMessage, error: fetchError } = await supabase
-              .from("messages")
-              .select(`
-                id,
-                session_id,
-                user_id,
-                content,
-                created_at,
-                profiles (
-                  username,
-                  avatar_url
-                )
-              `)
-              .eq("id", payload.new.id)
-              .single();
+          const newMessage = payload.new;
 
-            if (!isMounted) return;
-
-            if (!fetchError && newMessage) {
-              console.log("[Realtime] Successfully fetched new message with profile", newMessage);
-              const message = newMessage as Message;
-              // Avoid duplicates by checking if message already exists
-              setMessages((prev) => {
-                if (prev.find((m) => m.id === message.id)) {
-                  console.log("[Realtime] Message already exists in state, skipping", message.id);
-                  return prev;
-                }
-                console.log("[Realtime] Adding new message to state", message.id);
-                return [...prev, message];
-              });
-            } else {
-              console.warn("[Realtime] Failed to fetch full message with profile, using payload data", {
-                error: fetchError,
-                payload: payload.new,
-              });
-              
-              // Fallback: Use payload.new directly if fetch fails (e.g., due to RLS)
-              // This ensures messages still appear even if profile fetch fails
-              const fallbackMessage: Message = {
-                id: payload.new.id as string,
-                session_id: payload.new.session_id as string,
-                user_id: payload.new.user_id as string,
-                content: payload.new.content as string | null,
-                created_at: payload.new.created_at as string,
-                profiles: undefined, // Will be undefined if fetch fails
-              };
-
-              if (!isMounted) return;
-
-              setMessages((prev) => {
-                if (prev.find((m) => m.id === fallbackMessage.id)) {
-                  console.log("[Realtime] Fallback message already exists, skipping", fallbackMessage.id);
-                  return prev;
-                }
-                console.log("[Realtime] Adding fallback message (without profile) to state", fallbackMessage.id);
-                return [...prev, fallbackMessage];
-              });
-            }
-          } catch (err) {
-            console.error("[Realtime] Unexpected error processing INSERT event", err);
-            // Still try to add message from payload as fallback
-            if (!isMounted) return;
-            const fallbackMessage: Message = {
-              id: payload.new.id as string,
-              session_id: payload.new.session_id as string,
-              user_id: payload.new.user_id as string,
-              content: payload.new.content as string | null,
-              created_at: payload.new.created_at as string,
-              profiles: undefined,
-            };
-            setMessages((prev) => {
-              if (prev.find((m) => m.id === fallbackMessage.id)) {
-                return prev;
-              }
-              return [...prev, fallbackMessage];
-            });
+          if (!newMessage) {
+            console.warn("[Realtime] payload.new is missing");
+            return;
           }
+
+          // Directly use payload.new to add message to state
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMessage.id)) {
+              console.log("[Realtime] Message already exists, skipping duplicate", newMessage.id);
+              return prev; // dedupe
+            }
+            console.log("[Realtime] Adding new message to state", {
+              id: newMessage.id,
+              userId: newMessage.user_id,
+              content: newMessage.content,
+            });
+            return [...prev, newMessage as Message];
+          });
         }
       )
       .subscribe((status) => {
-        console.log("[useSessionMessages] Subscription status changed", {
-          channelName,
-          sessionId,
-          status,
-        });
+        console.log("[Realtime] Subscription status:", status);
         
         if (status === "SUBSCRIBED") {
-          console.log("[useSessionMessages] ✓ Successfully subscribed to messages for session", sessionId);
-        } else if (status === "CHANNEL_ERROR") {
-          console.error("[useSessionMessages] ✗ Channel error - Realtime subscription failed", {
-            channelName,
-            sessionId,
-          });
+          console.log("[Realtime] ✓ Successfully subscribed to messages for session", sessionId);
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.error("[Realtime] ✗ Subscription error:", status);
           if (isMounted) {
             setError("Failed to connect to live updates");
           }
-        } else if (status === "TIMED_OUT") {
-          console.error("[useSessionMessages] ✗ Subscription timed out", {
-            channelName,
-            sessionId,
-          });
-          if (isMounted) {
-            setError("Live updates connection timed out");
-          }
-        } else if (status === "CLOSED") {
-          console.log("[useSessionMessages] Subscription closed", {
-            channelName,
-            sessionId,
-          });
         }
       });
 
