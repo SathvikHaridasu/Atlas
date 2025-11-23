@@ -39,6 +39,7 @@ import SessionSettingsScreen from '../screens/SessionSettingsScreen';
 import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import PostDareScreen from '../screens/PostDareScreen';
 import SettingsNavigator from './SettingsNavigator';
 import { SwipeableTabWrapper } from '../components/navigation/SwipeableTabWrapper';
 import FadeInOnFocus from '../components/animation/FadeInOnFocus';
@@ -73,6 +74,7 @@ export type DrawerParamList = {
 export type RootStackParamList = {
   MainDrawer: undefined;
   Camera: { sessionId?: string }; // sessionId is optional since camera can be used from other places too
+  PostDare: { videoUri: string; sessionId: string }; // Required params for posting dare video
   CreateSession: undefined;
   JoinSession: undefined;
   SessionLobby: { sessionId: string; sessionName?: string };
@@ -362,6 +364,14 @@ export default function RootNavigator() {
             component={CameraScreen}
             options={{
               headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="PostDare"
+            component={PostDareScreen}
+            options={{
+              headerShown: false,
+              presentation: 'modal',
             }}
           />
           <Stack.Screen

@@ -17,11 +17,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HeaderHomeButton from '../components/HeaderHomeButton';
 import SaveVideoButton from '../components/SaveVideoButton';
-import { useFeed } from '../contexts/FeedContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { useSaveVideo } from '../hooks/useSaveVideo';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { FeedPost } from '../types/feed';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -37,7 +35,6 @@ export default function CameraScreen() {
   const sessionId = route.params?.sessionId;
   const [permission, requestPermission] = useCameraPermissions();
   const { saveVideo } = useSaveVideo();
-  const { addPost } = useFeed();
   const { theme } = useAppTheme();
 
   const [isRecording, setIsRecording] = useState(false);
@@ -49,9 +46,6 @@ export default function CameraScreen() {
   const [lastVideoUri, setLastVideoUri] = useState<string | null>(null);
   const [beautyEnabled, setBeautyEnabled] = useState(false);
   const [lastTap, setLastTap] = useState<number | null>(null);
-  const [showPostModal, setShowPostModal] = useState(false);
-  const [recordedVideoUri, setRecordedVideoUri] = useState<string | null>(null);
-  const [recordedDuration, setRecordedDuration] = useState<number>(0);
 
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressAnimRef = useRef(new Animated.Value(0));
@@ -476,11 +470,15 @@ export default function CameraScreen() {
             // Don't show error to user - they can manually save if needed
           }
 
-          // Show post modal if recording completed successfully
-          if (shouldNavigateOnCompleteRef.current && uri) {
-            setRecordedVideoUri(uri);
-            setRecordedDuration(Math.floor(elapsedMs / 1000));
-            setShowPostModal(true);
+          // Navigate to PostDareScreen if recording completed successfully
+          if (shouldNavigateOnCompleteRef.current && uri && sessionId) {
+            (navigation as any).navigate('PostDare', {
+              videoUri: uri,
+              sessionId: sessionId,
+            });
+          } else if (shouldNavigateOnCompleteRef.current && uri) {
+            // If no sessionId, just save the video and stay on camera
+            console.warn('No sessionId available, cannot post to feed');
           }
         })
         .catch((error) => {
@@ -503,58 +501,9 @@ export default function CameraScreen() {
     console.log('Add sound');
   };
 
-  const handleUploadComplete = () => {
-    // Reset state after successful upload
-    setRecordedVideoUri(null);
-    setRecordedDuration(0);
-    setLastVideoUri(null);
-    // Optionally navigate to video catalog or stay on camera
-    // navigation.navigate('VideoCatalog' as never);
-  };
+  // Removed handleUploadComplete and handleDiscard - no longer needed
 
-  const handleDiscard = () => {
-    // Reset state when discarding
-    setRecordedVideoUri(null);
-    setRecordedDuration(0);
-    setLastVideoUri(null);
-    setShowPostModal(false);
-    // Stay on camera screen, ready to record again
-  };
-
-  const handlePostToFeed = useCallback(async () => {
-    if (!recordedVideoUri || !sessionId) {
-      console.warn('Cannot post: missing video URI or session ID');
-      Alert.alert('Error', 'Cannot post video. Missing required information.');
-      return;
-    }
-
-    try {
-      // Create a feed post with the recorded video
-      const post: FeedPost = {
-        id: `post_${Date.now()}`,
-        userId: sessionId,
-        type: 'video',
-        videoUri: recordedVideoUri,
-        createdAt: new Date().toISOString(),
-        durationSeconds: recordedDuration,
-      };
-
-      // Add post to feed
-      addPost(post);
-
-      // Close modal and reset state
-      setShowPostModal(false);
-      setRecordedVideoUri(null);
-      setRecordedDuration(0);
-      setLastVideoUri(null);
-
-      // Optionally navigate to feed
-      // navigation.navigate('Feed' as never);
-    } catch (error) {
-      console.error('Error posting to feed:', error);
-      Alert.alert('Error', 'Failed to post video to feed. Please try again.');
-    }
-  }, [recordedVideoUri, sessionId, addPost]);
+  // Removed handlePostToFeed - posting is now handled in PostDareScreen
 
   // Memoize CameraView to prevent remounts during recording
   // Controls are disabled during recording, so cameraFacing and flashMode won't change
@@ -870,62 +819,7 @@ export default function CameraScreen() {
           </View>
         </SafeAreaView>
 
-        {/* Post Recording Modal */}
-        {showPostModal && recordedVideoUri && (
-          <View style={styles.modalBackdrop}>
-            <View
-              style={[
-                styles.modalCard,
-                { backgroundColor: theme.card, borderColor: 'rgba(3, 202, 89, 0.25)' },
-              ]}
-            >
-              {/* Video Preview */}
-              <View style={[styles.modalVideoPreview, { backgroundColor: theme.background }]}>
-                <Ionicons name="videocam" size={32} color={theme.accent} />
-                <Text style={[styles.modalVideoLabel, { color: theme.mutedText }]}>
-                  Video recorded
-                </Text>
-                {recordedDuration > 0 && (
-                  <Text style={[styles.modalDuration, { color: theme.mutedText }]}>
-                    {formatTime(recordedDuration * 1000)}
-                  </Text>
-                )}
-              </View>
-
-              {/* Modal Content */}
-              <Text style={[styles.modalTitle, { color: theme.text }]}>
-                Post this run to your feed?
-              </Text>
-
-              {/* Buttons */}
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButtonPrimary, { backgroundColor: theme.accent }]}
-                  onPress={handlePostToFeed}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[styles.modalButtonPrimaryText, { color: '#020617' }]}
-                  >
-                    Post on feed
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.modalButtonSecondary,
-                    { borderColor: 'rgba(148, 163, 184, 0.6)' },
-                  ]}
-                  onPress={handleDiscard}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.modalButtonSecondaryText, { color: theme.mutedText }]}>
-                    Discard
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
+        {/* Post Recording Modal - Removed, now navigates to PostDareScreen */}
       </View>
     </SafeAreaView>
   );
