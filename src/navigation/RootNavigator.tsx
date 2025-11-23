@@ -358,7 +358,11 @@ export default function RootNavigator() {
     <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
       {user ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="MainDrawer" component={MainDrawer} />
+          <Stack.Screen
+            name="MainDrawer"
+            component={MainDrawer}
+            options={{ title: 'Home' }}
+          />
           <Stack.Screen
             name="Camera"
             component={CameraScreen}
@@ -416,7 +420,8 @@ export default function RootNavigator() {
             component={ChallengesScreen}
             options={{
               headerShown: true,
-              title: 'Challenges',
+              title: 'Goals',
+              headerBackTitle: 'Home',
               headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
               headerTintColor: isDark ? '#F9FAFB' : '#111111',
             }}
