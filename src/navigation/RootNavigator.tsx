@@ -152,7 +152,6 @@ export default function RootNavigator() {
             component={CameraScreen}
             options={{
               headerShown: false,
-              presentation: 'fullScreenModal',
             }}
           />
           <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
