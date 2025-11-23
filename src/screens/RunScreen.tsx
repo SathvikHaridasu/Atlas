@@ -3,13 +3,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View, Animated } from "react-native";
 import MapView, { Circle, LatLng, MapPressEvent, Marker, Polygon, Polyline, Region } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMapState } from "../contexts/MapStateContext";
 import { useRunStats } from "../contexts/RunStatsContext";
 import { useAppTheme } from "../contexts/ThemeContext";
+import { NeonCard } from "../components/ui/NeonCard";
+import { usePressScale } from "../hooks/usePressScale";
 import {
     captureTerritoryForRun,
     fetchTerritoriesForRegion,
@@ -21,6 +23,59 @@ import {
 const POINTS_KEY = "userPoints";
 
 type RunStatus = "idle" | "running" | "paused";
+
+// Helper component for run control buttons
+const RunControlButton: React.FC<{
+  children: React.ReactNode;
+  onPress: () => void;
+  variant?: "default" | "danger";
+}> = ({ children, onPress, variant = "default" }) => {
+  const { animatedStyle, handlePressIn, handlePressOut } = usePressScale(0.95);
+  const { theme } = useAppTheme();
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[
+        styles.smallCircleButton,
+        variant === "danger" ? styles.smallCircleButtonDanger : { backgroundColor: theme.mode === 'dark' ? '#181818' : '#E5E5E5', borderColor: theme.border },
+      ]}
+      activeOpacity={1}
+    >
+      <Animated.View style={animatedStyle}>
+        {children}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+// Helper component for play/pause button
+const PlayPauseButton: React.FC<{
+  onPress: () => void;
+  isRunning: boolean;
+}> = ({ onPress, isRunning }) => {
+  const { animatedStyle, handlePressIn, handlePressOut } = usePressScale(0.95);
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={styles.startButton}
+      activeOpacity={1}
+    >
+      <Animated.View style={animatedStyle}>
+        {isRunning ? (
+          <MaterialIcons name="pause" size={32} color="#000000" />
+        ) : (
+          <MaterialIcons name="play-arrow" size={32} color="#000000" />
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
 
 const RunScreen: React.FC = () => {
   const { updateStats } = useRunStats();
@@ -365,111 +420,116 @@ const RunScreen: React.FC = () => {
   const gpsConnected = position !== null;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <MapView
-        ref={(ref) => (mapRef.current = ref)}
-        style={styles.map}
-        provider="google"
-        showsUserLocation
-        followsUserLocation
-        initialRegion={region}
-        mapType="standard"
-        onPress={handleMapPressForRoute}
-      >
-        {position && (
-          <>
-            {/* Custom profile marker */}
-            <Marker coordinate={position} tracksViewChanges={false}>
-              <View style={styles.avatarMarkerOuter}>
-                <View style={styles.avatarMarkerInner}>
-                  <Image
-                    source={{ uri: avatarUrl }}
-                    style={styles.avatarImage}
-                  />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={styles.mapWrapper}>
+        <MapView
+          ref={(ref) => (mapRef.current = ref)}
+          style={styles.map}
+          provider="google"
+          showsUserLocation
+          followsUserLocation
+          initialRegion={region}
+          mapType="standard"
+          onPress={handleMapPressForRoute}
+        >
+          {position && (
+            <>
+              {/* Custom profile marker */}
+              <Marker coordinate={position} tracksViewChanges={false}>
+                <View style={styles.avatarMarkerOuter}>
+                  <View style={styles.avatarMarkerInner}>
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      style={styles.avatarImage}
+                    />
+                  </View>
+                  <View style={styles.avatarMarkerArrow} />
                 </View>
-                <View style={styles.avatarMarkerArrow} />
-              </View>
-            </Marker>
-            {/* Growing territory circle */}
-            <Circle
-              center={position}
-              radius={50 + totalDistanceMeters}
-              strokeWidth={2}
-              strokeColor="rgba(3,202,89,0.9)"
-              fillColor="rgba(3,202,89,0.15)"
+              </Marker>
+              {/* Growing territory circle */}
+              <Circle
+                center={position}
+                radius={50 + totalDistanceMeters}
+                strokeWidth={2}
+                strokeColor="rgba(3,202,89,0.9)"
+                fillColor="rgba(3,202,89,0.15)"
+              />
+            </>
+          )}
+          {/* LIVE RUN TRAIL */}
+          {pathCoords.length > 1 && (
+            <Polyline
+              coordinates={pathCoords}
+              strokeWidth={5}
+              strokeColor="#03CA59"
             />
-          </>
-        )}
-        {/* LIVE RUN TRAIL */}
-        {pathCoords.length > 1 && (
-          <Polyline
-            coordinates={pathCoords}
-            strokeWidth={5}
-            strokeColor="#03CA59"
-          />
-        )}
-        {/* Planned route (if route planning mode) */}
-        {routePoints.length > 1 && (
-          <Polyline
-            coordinates={routePoints}
-            strokeWidth={3}
-            strokeColor="rgba(255,255,255,0.8)"
-            lineDashPattern={[10, 5]}
-          />
-        )}
-        {/* Territory tiles */}
-        {territoryTiles.map((tile) => {
-          const bounds = tileToBounds(tile.tile_x, tile.tile_y);
-
-          const coords = [
-            { latitude: bounds.south, longitude: bounds.west },
-            { latitude: bounds.south, longitude: bounds.east },
-            { latitude: bounds.north, longitude: bounds.east },
-            { latitude: bounds.north, longitude: bounds.west },
-          ];
-
-          const isMine = tile.owner_user_id === session?.user?.id;
-
-          return (
-            <Polygon
-              key={tile.id}
-              coordinates={coords}
+          )}
+          {/* Planned route (if route planning mode) */}
+          {routePoints.length > 1 && (
+            <Polyline
+              coordinates={routePoints}
               strokeWidth={3}
-              strokeColor={isMine ? "rgba(3, 202, 89, 1)" : "rgba(255, 64, 64, 1)"}
-              fillColor={isMine ? "rgba(3, 202, 89, 0.22)" : "rgba(255, 64, 64, 0.22)"}
+              strokeColor="rgba(255,255,255,0.8)"
+              lineDashPattern={[10, 5]}
             />
-          );
-        })}
-      </MapView>
+          )}
+          {/* Territory tiles */}
+          {territoryTiles.map((tile) => {
+            const bounds = tileToBounds(tile.tile_x, tile.tile_y);
 
-      {/* Points pill */}
-      <View style={[styles.pointsPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Ionicons name="trophy" size={18} color={theme.accent} style={styles.pointsIcon} />
-        <View style={styles.pointsTextContainer}>
-          <Text style={[styles.pointsLabel, { color: theme.mutedText }]}>Points</Text>
-          <Text style={[styles.pointsValue, { color: theme.accent }]}>{points.toLocaleString()}</Text>
+            const coords = [
+              { latitude: bounds.south, longitude: bounds.west },
+              { latitude: bounds.south, longitude: bounds.east },
+              { latitude: bounds.north, longitude: bounds.east },
+              { latitude: bounds.north, longitude: bounds.west },
+            ];
+
+            const isMine = tile.owner_user_id === session?.user?.id;
+
+            return (
+              <Polygon
+                key={tile.id}
+                coordinates={coords}
+                strokeWidth={3}
+                strokeColor={isMine ? "rgba(3, 202, 89, 1)" : "rgba(255, 64, 64, 1)"}
+                fillColor={isMine ? "rgba(3, 202, 89, 0.22)" : "rgba(255, 64, 64, 0.22)"}
+              />
+            );
+          })}
+        </MapView>
+
+        {/* Map overlays */}
+        <View style={styles.mapOverlays} pointerEvents="box-none">
+          {/* Points pill */}
+          <NeonCard style={styles.pointsPill}>
+            <Ionicons name="trophy" size={18} color="#03CA59" style={styles.pointsIcon} />
+            <View style={styles.pointsTextContainer}>
+              <Text style={styles.pointsLabel}>Points</Text>
+              <Text style={styles.pointsValue}>{points.toLocaleString()}</Text>
+            </View>
+          </NeonCard>
+
+          {/* Master Map FAB */}
+          <TouchableOpacity
+            style={styles.masterMapFab}
+            onPress={() => navigation.navigate("MasterMap" as never)}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="map" size={22} color="#ffffff" />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Master Map FAB */}
-      <TouchableOpacity
-        style={styles.masterMapFab}
-        onPress={() => navigation.navigate("MasterMap" as never)}
-        activeOpacity={0.8}
-      >
-        <MaterialIcons name="map" size={22} color="#ffffff" />
-      </TouchableOpacity>
-
       {/* Stats card */}
-      <View style={[styles.statsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <NeonCard highlight style={styles.statsCard}>
         {/* GPS status */}
         <View style={styles.gpsStatusRow}>
           <MaterialIcons
             name={gpsConnected ? "gps-fixed" : "signal-cellular-off"}
             size={16}
-            color={gpsConnected ? theme.accent : "#FF4C4C"}
+            color={gpsConnected ? "#03CA59" : "#FF4C4C"}
           />
-          <Text style={[styles.gpsText, { color: gpsConnected ? theme.accent : "#FF4C4C" }]}>
+          <Text style={[styles.gpsText, { color: gpsConnected ? "#03CA59" : "#FF4C4C" }]}>
             {gpsConnected ? "GPS Connected" : "No GPS signal"}
           </Text>
         </View>
@@ -477,19 +537,19 @@ const RunScreen: React.FC = () => {
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.statBlock}>
-            <Text style={[styles.statValue, { color: theme.text }]}>{formatTime(elapsedSeconds)}</Text>
-            <Text style={[styles.statLabel, { color: theme.mutedText }]}>Time</Text>
+            <Text style={styles.statValue}>{formatTime(elapsedSeconds)}</Text>
+            <Text style={styles.statLabel}>Time</Text>
           </View>
           <View style={styles.statBlock}>
-            <Text style={[styles.statValue, { color: theme.text }]}>{averagePace}</Text>
-            <Text style={[styles.statLabel, { color: theme.mutedText }]}>Split avg. (/km)</Text>
+            <Text style={styles.statValue}>{averagePace}</Text>
+            <Text style={styles.statLabel}>Split avg. (/km)</Text>
           </View>
           <View style={styles.statBlock}>
-            <Text style={[styles.statValue, { color: theme.text }]}>{(totalDistanceMeters / 1000).toFixed(2)}</Text>
-            <Text style={[styles.statLabel, { color: theme.mutedText }]}>Distance (km)</Text>
+            <Text style={styles.statValue}>{(totalDistanceMeters / 1000).toFixed(2)}</Text>
+            <Text style={styles.statLabel}>Distance (km)</Text>
           </View>
         </View>
-      </View>
+      </NeonCard>
 
       {/* Bottom controls */}
       <View style={styles.controlsWrapper}>
@@ -497,41 +557,44 @@ const RunScreen: React.FC = () => {
         <View style={styles.controlsRow}>
           {/* Run button (left) */}
           <View style={styles.smallButtonContainer}>
-            <TouchableOpacity style={[styles.smallCircleButton, { backgroundColor: theme.mode === 'dark' ? '#181818' : '#E5E5E5', borderColor: theme.border }]} onPress={handleToggleRoutePlanning} activeOpacity={0.8}>
-              <Ionicons name="walk-outline" size={24} color={theme.text} />
-            </TouchableOpacity>
-            <Text style={[styles.controlLabel, { color: theme.mutedText }]}>Add Route</Text>
+            <RunControlButton onPress={handleToggleRoutePlanning}>
+              <Ionicons name="walk-outline" size={24} color="#FFFFFF" />
+            </RunControlButton>
+            <Text style={styles.controlLabel}>Add Route</Text>
           </View>
 
           {/* Play/Pause button (center) */}
-          <TouchableOpacity style={[styles.bigCircleButton, { backgroundColor: theme.accent }]} onPress={handleStartPause} activeOpacity={0.9}>
-            {runStatus === "running" ? (
-              <MaterialIcons name="pause" size={32} color="#000000" />
-            ) : (
-              <MaterialIcons name="play-arrow" size={32} color="#000000" />
-            )}
-          </TouchableOpacity>
+          <PlayPauseButton onPress={handleStartPause} isRunning={runStatus === "running"} />
 
           {/* End button (right) */}
           <View style={styles.smallButtonContainer}>
-            <TouchableOpacity style={styles.smallCircleButtonDanger} onPress={handleEndRun} activeOpacity={0.8}>
+            <RunControlButton onPress={handleEndRun} variant="danger">
               <MaterialIcons name="stop" size={22} color="#ffffff" />
-            </TouchableOpacity>
-            <Text style={[styles.controlLabel, { color: theme.mutedText }]}>End</Text>
+            </RunControlButton>
+            <Text style={styles.controlLabel}>End</Text>
           </View>
         </View>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000000',
+  },
+  mapWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   map: {
     flex: 1,
+  },
+  mapOverlays: {
+    ...StyleSheet.absoluteFillObject,
+    pointerEvents: 'box-none',
   },
   center: {
     flex: 1,
@@ -541,20 +604,15 @@ const styles = StyleSheet.create({
   // Points pill
   pointsPill: {
     position: "absolute",
-    top: 16,
+    top: 64,
     left: 16,
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    borderRadius: 18,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     zIndex: 10,
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    minWidth: 100,
   },
   pointsIcon: {
     marginRight: 10,
@@ -566,10 +624,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "500",
     marginBottom: 2,
+    color: "rgba(255, 255, 255, 0.6)",
   },
   pointsValue: {
     fontSize: 18,
     fontWeight: "700",
+    color: "#03CA59",
   },
   // Stats card
   statsCard: {
@@ -577,15 +637,7 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     bottom: 130,
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
     zIndex: 10,
-    borderWidth: 1,
   },
   gpsStatusRow: {
     flexDirection: "row",
@@ -600,6 +652,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 12,
   },
   statBlock: {
     flex: 1,
@@ -609,10 +662,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     marginBottom: 4,
+    color: "#FFFFFF",
   },
   statLabel: {
     fontSize: 12,
-    opacity: 0.7,
+    color: "rgba(255, 255, 255, 0.7)",
   },
   // Bottom controls
   controlsWrapper: {
@@ -660,26 +714,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#c0392b",
   },
-  bigCircleButton: {
+  startButton: {
     width: 72,
     height: 72,
     borderRadius: 36,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#03CA59",
     shadowColor: "#03CA59",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowRadius: 16,
     elevation: 8,
   },
   controlLabel: {
-    fontSize: 10,
+    fontSize: 13,
     marginTop: 4,
     fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.7)",
   },
   masterMapFab: {
     position: "absolute",
-    top: 50,
+    top: 64,
     right: 16,
     width: 44,
     height: 44,

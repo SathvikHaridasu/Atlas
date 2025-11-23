@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useAuth } from '../../contexts/AuthContext';
+import { PillButton } from '../components/ui/PillButton';
+import { NeonCard } from '../components/ui/NeonCard';
 import {
   createSession,
   getUserSessions,
@@ -227,32 +229,36 @@ export default function SessionsHomeScreen({ navigation }: any) {
         renderRightActions={() => renderRightActions(item)}
         rightThreshold={40}
       >
-        <TouchableOpacity
-          style={styles.chatRow}
+        <NeonCard
           onPress={() => handleSessionPress(item)}
-          activeOpacity={0.8}
+          style={styles.chatCard}
         >
-          {/* Left avatar */}
-          <View style={styles.avatarContainer}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} contentFit="cover" />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarInitial}>{initial}</Text>
-              </View>
-            )}
-          </View>
+          <View style={styles.chatCardInner}>
+            {/* Left accent dot */}
+            <View style={styles.accentDot} />
+            
+            {/* Left avatar */}
+            <View style={styles.avatarContainer}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} contentFit="cover" />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarInitial}>{initial}</Text>
+                </View>
+              )}
+            </View>
 
-          {/* Middle text */}
-          <View style={styles.chatTextContainer}>
-            <Text style={styles.chatName}>{item.name}</Text>
-            <Text style={styles.chatCode}>Join Code: {item.code || item.join_code}</Text>
-            {dateRange && <Text style={styles.chatDates}>{dateRange}</Text>}
-          </View>
+            {/* Middle text */}
+            <View style={styles.chatTextContainer}>
+              <Text style={styles.chatName}>{item.name}</Text>
+              <Text style={styles.chatCode}>Join Code: {item.code || item.join_code}</Text>
+              {dateRange && <Text style={styles.chatDates}>{dateRange}</Text>}
+            </View>
 
-          {/* Right arrow */}
-          <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-        </TouchableOpacity>
+            {/* Right arrow */}
+            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+          </View>
+        </NeonCard>
       </Swipeable>
     );
   };
@@ -275,27 +281,18 @@ export default function SessionsHomeScreen({ navigation }: any) {
 
       <View style={styles.container}>
         <View style={styles.buttonRow}>
-          <TouchableOpacity onPress={handleCreateSession} style={styles.buttonWrapper}>
-            <LinearGradient
-              colors={['#03CA59', '#16DB7E']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradientButton}
-            >
-              <Text style={styles.gradientButtonText}>Create Chat</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleJoinSession} style={styles.buttonWrapper}>
-            <LinearGradient
-              colors={['#3B82F6', '#6366F1']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradientButton}
-            >
-              <Text style={styles.gradientButtonText}>Join Chat</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          <PillButton
+            label="Create Chat"
+            onPress={handleCreateSession}
+            variant="primary"
+            style={styles.buttonWrapper}
+          />
+          <PillButton
+            label="Join Chat"
+            onPress={handleJoinSession}
+            variant="blue"
+            style={styles.buttonWrapper}
+          />
         </View>
 
         <FlatList
@@ -433,36 +430,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginHorizontal: 20,
-    marginTop: 8,
+    marginTop: 12,
+    gap: 12,
   },
   buttonWrapper: {
     flex: 1,
-    marginHorizontal: 6,
-  },
-  gradientButton: {
-    paddingVertical: 14,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gradientButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
   },
   listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 24,
   },
-  chatRow: {
+  chatCard: {
+    marginBottom: 12,
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  chatCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0B1220',
-    borderRadius: 18,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginTop: 12,
+    margin: -18,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  accentDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(3, 202, 89, 0.4)',
+    marginRight: 12,
   },
   avatarContainer: {
     marginRight: 12,
@@ -532,20 +528,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   chatName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#F9FAFB',
-    marginBottom: 2,
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
   chatCode: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginBottom: 2,
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 4,
   },
   chatDates: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: 4,
   },
   swipeDelete: {
     backgroundColor: '#DC2626',

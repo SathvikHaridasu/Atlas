@@ -6,11 +6,14 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Polygon, Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRunStats } from '../contexts/RunStatsContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import type { RootTabParamList } from '../navigation/RootNavigator';
 import { SAMPLE_ZONES } from '../lib/sampleZones';
+import { NeonCard } from '../components/ui/NeonCard';
+import { PillButton } from '../components/ui/PillButton';
 
 type HomeScreenNavigationProp = BottomTabNavigationProp<RootTabParamList, 'Home'>;
 
@@ -140,54 +143,75 @@ export default function HomeScreen() {
       >
         {/* Welcome message */}
         <View style={styles.welcomeContainer}>
-          <Text style={[styles.welcomeLabel, { color: theme.mutedText }]}>Welcome back,</Text>
-          <Text style={[styles.welcomeName, { color: theme.text }]}>{displayName}</Text>
+          <Text style={styles.welcomeLabel}>Welcome back,</Text>
+          <Text style={styles.welcomeName}>{displayName}</Text>
         </View>
 
         {/* Today stats */}
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Today</Text>
+        <Text style={styles.sectionTitle}>Today</Text>
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Ionicons name="walk-outline" size={24} color={theme.accent} />
-            <Text style={[styles.statValue, { color: theme.text }]}>{distanceKm}</Text>
-            <Text style={[styles.statLabel, { color: theme.mutedText }]}>km</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Ionicons name="time-outline" size={24} color={theme.accent} />
-            <Text style={[styles.statValue, { color: theme.text }]}>{formatTime(elapsedSeconds)}</Text>
-            <Text style={[styles.statLabel, { color: theme.mutedText }]}>time</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Ionicons name="trophy-outline" size={24} color={theme.accent} />
-            <Text style={[styles.statValue, { color: theme.text }]}>{points.toLocaleString()}</Text>
-            <Text style={[styles.statLabel, { color: theme.mutedText }]}>points</Text>
-          </View>
+          <NeonCard style={styles.statCardWrapper}>
+            <Ionicons name="walk-outline" size={24} color="#03CA59" style={styles.statIcon} />
+            <Text style={styles.statValue}>{distanceKm}</Text>
+            <Text style={styles.statLabel}>km</Text>
+            <LinearGradient
+              colors={['transparent', 'rgba(3, 202, 89, 0.06)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+          </NeonCard>
+          <NeonCard style={styles.statCardWrapper}>
+            <Ionicons name="time-outline" size={24} color="#03CA59" style={styles.statIcon} />
+            <Text style={styles.statValue}>{formatTime(elapsedSeconds)}</Text>
+            <Text style={styles.statLabel}>time</Text>
+            <LinearGradient
+              colors={['transparent', 'rgba(3, 202, 89, 0.06)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+          </NeonCard>
+          <NeonCard style={styles.statCardWrapper}>
+            <Ionicons name="trophy-outline" size={24} color="#03CA59" style={styles.statIcon} />
+            <Text style={styles.statValue}>{points.toLocaleString()}</Text>
+            <Text style={styles.statLabel}>points</Text>
+            <LinearGradient
+              colors={['transparent', 'rgba(3, 202, 89, 0.06)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+          </NeonCard>
         </View>
 
         {/* Personal goals */}
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Personal goals</Text>
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.goalTitle, { color: theme.text }]}>Run {weeklyGoalKm} km this week</Text>
-          <Text style={[styles.goalSubtitle, { color: theme.mutedText }]}>
+        <Text style={styles.sectionTitle}>Personal goals</Text>
+        <NeonCard highlight>
+          <Text style={styles.goalTitle}>Run {weeklyGoalKm} km this week</Text>
+          <Text style={styles.goalSubtitle}>
             You've run {distanceKm} km so far.
           </Text>
-          <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
+          <View style={styles.progressBar}>
             <View
               style={[
                 styles.progressFill,
-                { width: `${weekProgress * 100}%`, backgroundColor: theme.accent },
+                { width: `${weekProgress * 100}%` },
               ]}
             />
           </View>
-          <Text style={[styles.progressText, { color: theme.mutedText }]}>
+          <Text style={styles.progressText}>
             {Math.round(weekProgress * 100)}% complete
           </Text>
-        </View>
+        </NeonCard>
 
         {/* Mini Map card */}
-        <View style={[styles.miniMapCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <NeonCard>
           <View style={styles.miniMapHeader}>
-            <Text style={[styles.masterMapTitle, { color: theme.text }]}>Your territory</Text>
+            <Text style={styles.masterMapTitle}>Your territory</Text>
             <TouchableOpacity onPress={() => navigation.navigate("MasterMap" as never)}>
               <Text style={styles.miniMapLink}>Open map</Text>
             </TouchableOpacity>
@@ -218,46 +242,46 @@ export default function HomeScreen() {
               </MapView>
             ) : (
               <View style={styles.miniMapPlaceholder}>
-                <Text style={[styles.miniMapPlaceholderText, { color: theme.mutedText }]}>
+                <Text style={styles.miniMapPlaceholderText}>
                   {locationError ?? "Loading your area..."}
                 </Text>
               </View>
             )}
           </View>
-        </View>
+        </NeonCard>
 
         {/* Quick actions */}
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Quick actions</Text>
+        <Text style={styles.sectionTitle}>Quick actions</Text>
         <View style={styles.quickRow}>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleStartRun}
             activeOpacity={0.8}
           >
-            <View style={[styles.actionIcon, { backgroundColor: theme.accent }]}>
+            <View style={styles.actionIconPrimary}>
               <Ionicons name="play" size={24} color="#000" />
             </View>
-            <Text style={[styles.actionLabel, { color: theme.mutedText }]}>Start Run</Text>
+            <Text style={styles.actionLabel}>Start Run</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleViewChallenges}
             activeOpacity={0.8}
           >
-            <View style={[styles.actionIcon, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <MaterialIcons name="terrain" size={24} color={theme.accent} />
+            <View style={styles.actionIcon}>
+              <MaterialIcons name="terrain" size={24} color="#03CA59" />
             </View>
-            <Text style={[styles.actionLabel, { color: theme.mutedText }]}>Challenges</Text>
+            <Text style={styles.actionLabel}>Challenges</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleGoToChat}
             activeOpacity={0.8}
           >
-            <View style={[styles.actionIcon, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Ionicons name="chatbubbles-outline" size={24} color={theme.accent} />
+            <View style={styles.actionIcon}>
+              <Ionicons name="chatbubbles-outline" size={24} color="#03CA59" />
             </View>
-            <Text style={[styles.actionLabel, { color: theme.mutedText }]}>Group Chats</Text>
+            <Text style={styles.actionLabel}>Group Chats</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -321,82 +345,92 @@ const styles = StyleSheet.create({
   },
   welcomeContainer: {
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   welcomeLabel: {
     fontSize: 14,
     fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 2,
   },
   welcomeName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    marginTop: 4,
+    color: '#FFFFFF',
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 12,
-    marginTop: 8,
+    marginTop: 24,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
+    gap: 8,
   },
-  statCard: {
+  statCardWrapper: {
     flex: 1,
-    borderRadius: 16,
-    padding: 16,
     alignItems: 'center',
-    marginHorizontal: 4,
-    borderWidth: 1,
+    padding: 16,
+    minHeight: 100,
+  },
+  statIcon: {
+    marginBottom: 8,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    marginTop: 8,
+    color: '#FFFFFF',
+    marginTop: 4,
   },
   statLabel: {
     fontSize: 12,
     marginTop: 4,
-  },
-  card: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   goalTitle: {
     fontSize: 18,
     fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   goalSubtitle: {
     fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: 12,
   },
   progressBar: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: 8,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 4,
+    backgroundColor: '#03CA59',
+    borderRadius: 3,
   },
   progressText: {
-    fontSize: 12,
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 8,
   },
   quickRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 8,
+    marginBottom: 20,
+    gap: 8,
   },
   actionButton: {
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: 4,
   },
   actionIcon: {
     width: 56,
@@ -405,38 +439,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    backgroundColor: '#050A0E',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  actionIconPrimary: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    backgroundColor: '#03CA59',
+    shadowColor: '#03CA59',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
   actionLabel: {
-    fontSize: 12,
+    fontSize: 13,
     textAlign: 'center',
-  },
-  miniMapCard: {
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 18,
-    borderWidth: 1,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   miniMapHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   masterMapTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   miniMapContainer: {
     height: 140,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#050505',
   },
   miniMapLink: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#03CA59',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   miniMapPlaceholder: {
     flex: 1,
@@ -445,5 +491,6 @@ const styles = StyleSheet.create({
   },
   miniMapPlaceholderText: {
     fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });

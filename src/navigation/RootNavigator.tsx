@@ -178,6 +178,7 @@ function MainTabs() {
         )}
         options={{
           title: 'Run',
+          headerShown: false,
         }}
         listeners={tabListeners}
       />
@@ -195,6 +196,7 @@ function MainTabs() {
         )}
         options={{
           title: 'Chats',
+          headerShown: false,
         }}
         listeners={tabListeners}
       />

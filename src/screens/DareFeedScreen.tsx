@@ -3,6 +3,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Dimensions,
   FlatList,
   StyleSheet,
@@ -12,16 +13,62 @@ import {
   ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { fetchVideos } from '../../lib/videoService';
 import { VideoMetadata } from '../types/video';
 import FullScreenVideoModal from '../components/FullScreenVideoModal';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { NeonCard } from '../components/ui/NeonCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // Instagram Reels style: portrait aspect ratio (9:16)
 // Use 75% of screen width for better proportions
 const VIDEO_CARD_WIDTH = SCREEN_WIDTH * 0.75; // 75% of screen width
 const VIDEO_CARD_HEIGHT = VIDEO_CARD_WIDTH * (16 / 9); // 9:16 aspect ratio (portrait)
+
+// Skeleton loader component
+const SkeletonLoader = () => {
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width: VIDEO_CARD_WIDTH,
+          height: VIDEO_CARD_HEIGHT,
+          borderRadius: 20,
+          backgroundColor: '#050A0E',
+          marginBottom: 16,
+          alignSelf: 'center',
+        },
+        {
+          opacity: pulseAnim,
+        },
+      ]}
+    />
+  );
+};
 
 // Separate component for video preview item to use hooks
 interface VideoPreviewItemProps {
@@ -149,35 +196,51 @@ const VideoPreviewItem = React.memo(function VideoPreviewItem({
   }, [player, index]);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={onPress}
-      style={styles.videoCard}
-    >
-      {hasError ? (
-        <View style={styles.errorOverlay}>
-          <Text style={styles.errorText}>Video unavailable</Text>
-          <Text style={styles.errorSubtext}>Tap to try again</Text>
-        </View>
-      ) : (
-        <VideoView
-          player={player}
-          style={styles.previewVideo}
-          contentFit="cover"
-          nativeControls={false}
-          fullscreenOptions={{ enterFullscreenButton: false }}
-          onError={(e) => {
-            console.error(`[VideoPreviewItem ${index}] VideoView onError callback:`, {
-              error: e,
-              errorMessage: e?.message || 'Unknown error',
-              errorCode: e?.code || 'N/A',
-              videoUrl: video.video_url,
-            });
-            setHasError(true);
-          }}
-        />
-      )}
-    </TouchableOpacity>
+    <NeonCard onPress={onPress} style={styles.videoCardWrapper}>
+      <View style={styles.videoCard}>
+        {hasError ? (
+          <View style={styles.errorOverlay}>
+            <Text style={styles.errorText}>Video unavailable</Text>
+            <Text style={styles.errorSubtext}>Tap to try again</Text>
+          </View>
+        ) : (
+          <>
+            <VideoView
+              player={player}
+              style={styles.previewVideo}
+              contentFit="cover"
+              nativeControls={false}
+              fullscreenOptions={{ enterFullscreenButton: false }}
+              onError={(e) => {
+                console.error(`[VideoPreviewItem ${index}] VideoView onError callback:`, {
+                  error: e,
+                  errorMessage: e?.message || 'Unknown error',
+                  errorCode: e?.code || 'N/A',
+                  videoUrl: video.video_url,
+                });
+                setHasError(true);
+              }}
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0, 0, 0, 0.6)']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.videoOverlay}
+              pointerEvents="none"
+            >
+              <View style={styles.videoOverlayContent}>
+                <Ionicons name="play-circle" size={48} color="#FFFFFF" style={styles.playIcon} />
+                {video.dare_title && (
+                  <Text style={styles.videoTitle} numberOfLines={1}>
+                    {video.dare_title}
+                  </Text>
+                )}
+              </View>
+            </LinearGradient>
+          </>
+        )}
+      </View>
+    </NeonCard>
   );
 });
 
@@ -317,9 +380,11 @@ export default function DareFeedScreen() {
   if (loading && videos.length === 0) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <ScreenHeader title="Dare Feed" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.accent} />
-          <Text style={[styles.loadingText, { color: theme.mutedText }]}>Loading videos...</Text>
+          <SkeletonLoader />
+          <SkeletonLoader />
+          <SkeletonLoader />
         </View>
       </SafeAreaView>
     );
@@ -341,6 +406,7 @@ export default function DareFeedScreen() {
   return (
     <>
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <ScreenHeader title="Dare Feed" />
         <FlatList
           data={videos}
           renderItem={renderVideoItem}
@@ -381,17 +447,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    padding: 8,
+    padding: 16,
     paddingBottom: 32,
   },
-  videoCard: {
+  videoCardWrapper: {
+    marginBottom: 16,
+    alignSelf: 'center',
     width: VIDEO_CARD_WIDTH,
+  },
+  videoCard: {
+    width: '100%',
     height: VIDEO_CARD_HEIGHT,
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: '#1B1B1B',
-    marginBottom: 16,
-    alignSelf: 'center',
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+  },
+  videoOverlayContent: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  playIcon: {
+    marginBottom: 8,
+    opacity: 0.9,
+  },
+  videoTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   previewVideo: {
     width: '100%',
