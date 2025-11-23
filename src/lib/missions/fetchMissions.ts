@@ -14,6 +14,8 @@ import type {
  * - mission_templates.is_active = true
  */
 export async function fetchGlobalMissions(): Promise<MissionWithTemplate[]> {
+  console.log('[fetchMissions] Fetching global missions...');
+  
   const { data, error } = await supabase
     .from('mission_instances')
     .select(`
@@ -25,22 +27,37 @@ export async function fetchGlobalMissions(): Promise<MissionWithTemplate[]> {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Supabase error:', error);
-    throw new Error('Failed to fetch global missions');
+    console.error('[fetchMissions] Supabase error fetching global missions:', error);
+    throw new Error(`Failed to fetch global missions: ${error.message}`);
   }
 
   if (!data) {
+    console.log('[fetchMissions] No data returned from global missions query');
     return [];
   }
 
+  console.log('[fetchMissions] Raw data from Supabase:', data.length, 'missions');
+
   // Filter to only include missions with active templates
   // and map to proper types
-  return data
-    .filter((item) => item.mission_template && (item.mission_template as MissionTemplate).is_active)
+  const filtered = data
+    .filter((item) => {
+      const hasTemplate = !!item.mission_template;
+      const isActive = hasTemplate && (item.mission_template as MissionTemplate).is_active;
+      if (!hasTemplate) {
+        console.warn('[fetchMissions] Mission instance missing template:', item.id);
+      } else if (!isActive) {
+        console.log('[fetchMissions] Mission template is inactive:', (item.mission_template as MissionTemplate).title);
+      }
+      return isActive;
+    })
     .map((item) => ({
       ...item,
       mission_template: item.mission_template as MissionTemplate,
     })) as MissionWithTemplate[];
+
+  console.log('[fetchMissions] Filtered active missions:', filtered.length);
+  return filtered;
 }
 
 /**
@@ -121,8 +138,11 @@ export async function fetchMissionInstancesForUser(
   userId: string
 ): Promise<UserMissionStatus[]> {
   try {
+    console.log('[fetchMissions] Fetching missions for user:', userId);
+    
     // 1. Get global missions
     const globalMissions = await fetchGlobalMissions();
+    console.log('[fetchMissions] Global missions:', globalMissions.length);
 
     // 2. Get session IDs where user is a member
     const { data: memberData, error: memberError } = await supabase
@@ -166,9 +186,11 @@ export async function fetchMissionInstancesForUser(
 
     // 5. Combine all missions
     const allMissions = [...globalMissions, ...sessionMissions, ...userMissions];
+    console.log('[fetchMissions] Total missions (global + session + user):', allMissions.length);
 
     // 6. Get participation status for each mission
     const missionInstanceIds = allMissions.map((m) => m.id);
+    console.log('[fetchMissions] Fetching participation for', missionInstanceIds.length, 'missions');
 
     let participations: Array<{ mission_instance_id: string; participation: any }> = [];
     if (missionInstanceIds.length > 0) {
@@ -201,6 +223,7 @@ export async function fetchMissionInstancesForUser(
       };
     });
 
+    console.log('[fetchMissions] Returning', result.length, 'mission statuses');
     return result;
   } catch (error) {
     if (error instanceof Error) {

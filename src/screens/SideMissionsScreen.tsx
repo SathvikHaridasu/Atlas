@@ -29,6 +29,15 @@ export default function SideMissionsScreen() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [joiningMissionId, setJoiningMissionId] = useState<string | null>(null);
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[SideMissionsScreen] availableMissions:', availableMissions.length);
+    if (availableMissions.length > 0) {
+      console.log('[SideMissionsScreen] First mission:', availableMissions[0]?.mission_template?.title);
+      console.log('[SideMissionsScreen] All mission titles:', availableMissions.map(m => m.mission_template?.title));
+    }
+  }, [availableMissions]);
+
   /**
    * Filter missions based on selected filter
    */
@@ -335,11 +344,15 @@ export default function SideMissionsScreen() {
         <View style={styles.centerContainer}>
           <Ionicons name="flag-outline" size={48} color={theme.mutedText} />
           <Text style={[styles.emptyText, { color: theme.mutedText }]}>
-            No missions found
+            {availableMissions.length === 0 
+              ? 'No missions yet — check back soon 👀'
+              : 'No missions found'}
           </Text>
-          <Text style={[styles.emptySubtext, { color: theme.mutedText }]}>
-            Try selecting a different filter
-          </Text>
+          {availableMissions.length > 0 && (
+            <Text style={[styles.emptySubtext, { color: theme.mutedText }]}>
+              Try selecting a different filter
+            </Text>
+          )}
         </View>
       ) : (
         <FlatList

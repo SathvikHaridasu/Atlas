@@ -60,19 +60,23 @@ export const MissionsProvider = ({ children }: { children: ReactNode }) => {
    */
   const fetchMissions = useCallback(async () => {
     if (!user?.id) {
+      console.log('[MissionsContext] No user, clearing missions');
       setAvailableMissions([]);
       setParticipation({});
       return;
     }
 
+    console.log('[MissionsContext] Fetching missions for user:', user.id);
     setLoading(true);
     setError(null);
 
     try {
       const userMissionStatuses = await fetchMissionInstancesForUser(user.id);
+      console.log('[MissionsContext] Fetched', userMissionStatuses.length, 'mission statuses');
 
       // Extract mission instances
       const missions = userMissionStatuses.map((status) => status.mission_instance);
+      console.log('[MissionsContext] Loaded', missions.length, 'missions');
       setAvailableMissions(missions);
 
       // Build participation map
@@ -83,9 +87,10 @@ export const MissionsProvider = ({ children }: { children: ReactNode }) => {
         }
       });
       setParticipation(participationMap);
+      console.log('[MissionsContext] Participation map has', Object.keys(participationMap).length, 'entries');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch missions';
-      console.error('Error fetching missions:', err);
+      console.error('[MissionsContext] Error fetching missions:', err);
       setError(errorMessage);
       setAvailableMissions([]);
       setParticipation({});
