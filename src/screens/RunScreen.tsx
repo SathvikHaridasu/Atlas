@@ -103,7 +103,7 @@ const RunScreen: React.FC = () => {
   const isRunning = runStatus === "running";
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [totalDistanceMeters, setTotalDistanceMeters] = useState(0);
-  const [averagePace, setAveragePace] = useState<string>("-");
+  const [avgSplitPerKm, setAvgSplitPerKm] = useState<string>("-");
   const [points, setPoints] = useState(0);
   const [isPlanningRoute, setIsPlanningRoute] = useState(false);
   const [routePoints, setRoutePoints] = useState<LatLng[]>([]);
@@ -188,22 +188,19 @@ const RunScreen: React.FC = () => {
     };
   }, [runStatus]);
 
-  // Pace calculation effect
+  // Split average calculation effect (minutes per km, 1 decimal place)
   useEffect(() => {
     const distanceKm = totalDistanceMeters / 1000;
 
     if (distanceKm <= 0 || elapsedSeconds <= 0) {
-      setAveragePace("-");
+      setAvgSplitPerKm("-");
       return;
     }
 
-    const secPerKm = elapsedSeconds / distanceKm;
-    const paceMin = Math.floor(secPerKm / 60);
-    const paceSec = Math.round(secPerKm % 60);
-
-    setAveragePace(
-      `${String(paceMin).padStart(2, "0")}:${String(paceSec).padStart(2, "0")}`
-    );
+    // Calculate minutes per km: (totalElapsedSeconds / 60) / distanceKm
+    const paceMinutes = (elapsedSeconds / 60) / distanceKm;
+    const rounded = Math.round(paceMinutes * 10) / 10; // Round to 1 decimal place
+    setAvgSplitPerKm(rounded.toFixed(1));
   }, [totalDistanceMeters, elapsedSeconds]);
 
   useEffect(() => {
@@ -341,13 +338,36 @@ const RunScreen: React.FC = () => {
     });
   }, [points, totalDistanceMeters, elapsedSeconds, updateStats]);
 
+  // Track when we navigated to SaveActivityScreen
+  const saveScreenNavigateTimeRef = useRef<number | null>(null);
+
   // Animate to masterRegion when screen is focused
   useFocusEffect(
     useCallback(() => {
       if (masterRegion && mapRef.current) {
         mapRef.current.animateToRegion(masterRegion, 500);
       }
-    }, [masterRegion])
+      
+      // If we navigated to SaveActivityScreen more than 2 seconds ago and run is paused,
+      // assume user saved and navigated away, then came back - reset the run
+      if (saveScreenNavigateTimeRef.current && runStatus === "paused") {
+        const timeSinceNavigate = Date.now() - saveScreenNavigateTimeRef.current;
+        // If more than 2 seconds passed, user likely saved and navigated away
+        if (timeSinceNavigate > 2000) {
+          setRunStatus("idle");
+          setElapsedSeconds(0);
+          setTotalDistanceMeters(0);
+          setAvgSplitPerKm("-");
+          setPathCoords([]);
+          previousPositionRef.current = null;
+          pointsDistanceRef.current = 0;
+          saveScreenNavigateTimeRef.current = null;
+        } else {
+          // User likely discarded - keep run paused so they can resume
+          saveScreenNavigateTimeRef.current = null;
+        }
+      }
+    }, [masterRegion, runStatus])
   );
 
   if (hasPermission === null || !region) {
@@ -363,8 +383,13 @@ const RunScreen: React.FC = () => {
       if (prev === "idle" || prev === "paused") {
         // starting or resuming
         if (prev === "idle") {
-          // Starting a new run – clear previous path
+          // Starting a new run – reset everything
           setPathCoords([]);
+          setElapsedSeconds(0);
+          setTotalDistanceMeters(0);
+          setAvgSplitPerKm("-");
+          setPoints(0);
+          pointsDistanceRef.current = 0;
           previousPositionRef.current = null;
         }
         return "running";
@@ -377,19 +402,28 @@ const RunScreen: React.FC = () => {
   const handleEndRun = () => {
     if (runStatus === "idle") return;
 
+    // Pause the run first
+    setRunStatus("paused");
+    saveScreenNavigateTimeRef.current = Date.now();
+
     const userId = session?.user?.id;
     if (userId && pathCoords.length > 1 && totalDistanceMeters > 0) {
       captureTerritoryForRun(userId, pathCoords as TerritoryLatLng[], totalDistanceMeters);
     }
 
-    // Reset stats for a fresh run
-    setRunStatus("idle");
-    setElapsedSeconds(0);
-    setTotalDistanceMeters(0);
-    setAveragePace("-");
-    setPathCoords([]);
-    previousPositionRef.current = null;
-    pointsDistanceRef.current = 0;
+    // Navigate to SaveActivityScreen with run data
+    const distanceKm = totalDistanceMeters / 1000;
+    const startTime = new Date(Date.now() - elapsedSeconds * 1000).toISOString();
+    
+    navigation.navigate("SaveActivity" as never, {
+      distanceKm,
+      elapsedSeconds,
+      avgSplitPerKm: avgSplitPerKm === '-' ? null : parseFloat(avgSplitPerKm),
+      points,
+      pathCoords: pathCoords.length > 0 ? pathCoords : undefined,
+      startedAt: startTime,
+      completedAt: new Date().toISOString(),
+    } as never);
   };
 
   const handleToggleRoutePlanning = () => {
@@ -541,7 +575,7 @@ const RunScreen: React.FC = () => {
             <Text style={styles.statLabel}>Time</Text>
           </View>
           <View style={styles.statBlock}>
-            <Text style={styles.statValue}>{averagePace}</Text>
+            <Text style={styles.statValue}>{avgSplitPerKm === '-' ? '-' : avgSplitPerKm}</Text>
             <Text style={styles.statLabel}>Split avg. (/km)</Text>
           </View>
           <View style={styles.statBlock}>

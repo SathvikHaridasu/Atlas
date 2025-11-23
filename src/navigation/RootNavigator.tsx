@@ -33,6 +33,9 @@ import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RunScreen from '../screens/RunScreen';
+import RunDetailScreen from '../screens/RunDetailScreen';
+import SaveActivityScreen from '../screens/SaveActivityScreen';
+import SavedRunsScreen from '../screens/SavedRunsScreen';
 import SessionLeaderboardScreen from '../screens/SessionLeaderboardScreen';
 import SessionLobbyScreen from '../screens/SessionLobbyScreen';
 import SessionSettingsScreen from '../screens/SessionSettingsScreen';
@@ -95,6 +98,17 @@ export type RootStackParamList = {
   Profile: undefined;
   EditProfileScreen: undefined;
   Favorites: undefined;
+  SaveActivity: {
+    distanceKm: number;
+    elapsedSeconds: number;
+    avgSplitPerKm: number | null;
+    points: number;
+    pathCoords?: Array<{ latitude: number; longitude: number }>;
+    startedAt: string;
+    completedAt: string;
+  };
+  SavedRuns: undefined;
+  RunDetail: { activityId: string };
 };
 
 // Theme colors for drawer
@@ -453,6 +467,28 @@ export default function RootNavigator() {
             name="EditProfileScreen"
             component={EditProfileScreen}
             options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="SaveActivity"
+            component={SaveActivityScreen}
+            options={{
+              headerShown: false,
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
+            name="SavedRuns"
+            component={SavedRunsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="RunDetail"
+            component={RunDetailScreen}
+            options={{
+              headerShown: false,
+            }}
           />
         </Stack.Navigator>
       ) : (

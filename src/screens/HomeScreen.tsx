@@ -62,6 +62,14 @@ export default function HomeScreen() {
     navigation.navigate('Chats');
   };
 
+  const handleViewSavedRuns = () => {
+    // Navigate to SavedRuns screen in the root stack
+    const parentNavigator = navigation.getParent();
+    if (parentNavigator) {
+      (parentNavigator as any).navigate('SavedRuns');
+    }
+  };
+
   const weeklyGoalKm = 10;
   const weekProgress = Math.min(parseFloat(distanceKm) / weeklyGoalKm, 1);
 
@@ -176,6 +184,22 @@ export default function HomeScreen() {
             />
           </NeonCard>
         </View>
+
+        {/* Saved Runs shortcut */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={handleViewSavedRuns}
+          style={styles.savedRunsCard}
+        >
+          <View style={styles.savedRunsLeft}>
+            <Ionicons name="footsteps-outline" size={18} color={theme.accent} />
+            <View style={styles.savedRunsTextContainer}>
+              <Text style={styles.savedRunsTitle}>Saved runs</Text>
+              <Text style={styles.savedRunsSubtitle}>View your past activities</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#fff" />
+        </TouchableOpacity>
 
         {/* Personal goals */}
         <Text style={styles.sectionTitle}>Personal goals</Text>
@@ -352,6 +376,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
     gap: 8,
+  },
+  savedRunsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0B0F14',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  savedRunsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  savedRunsTextContainer: {
+    marginLeft: 10,
+  },
+  savedRunsTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  savedRunsSubtitle: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
   },
   statCardWrapper: {
     flex: 1,
