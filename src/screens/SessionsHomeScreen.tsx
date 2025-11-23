@@ -22,6 +22,7 @@ import {
   getUserSessions,
   joinSessionWithCode,
   leaveSession,
+  getSessionMembership,
 } from '../../lib/sessionService';
 import { getGroupImageUrl } from '../../lib/storageService';
 
@@ -104,9 +105,17 @@ export default function SessionsHomeScreen({ navigation }: any) {
     setModalLoading(true);
     try {
       const session = await createSession(sessionName.trim());
+      
+      // Check if user has already submitted a dare
+      const membership = await getSessionMembership(session.id, user.id);
+      const shouldPromptForDare = !membership?.dare_submitted;
+      
       setCreateModalVisible(false);
       setSessionName('');
-      navigation.navigate('SessionLobby', { sessionId: session.id });
+      navigation.navigate('SessionLobby', { 
+        sessionId: session.id,
+        shouldPromptForDare,
+      });
       loadSessions(); // Refresh list
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create chat');
@@ -133,9 +142,17 @@ export default function SessionsHomeScreen({ navigation }: any) {
     setModalLoading(true);
     try {
       const session = await joinSessionWithCode(user.id, normalizedCode);
+      
+      // Check if user has already submitted a dare
+      const membership = await getSessionMembership(session.id, user.id);
+      const shouldPromptForDare = !membership?.dare_submitted;
+      
       setJoinModalVisible(false);
       setJoinCode('');
-      navigation.navigate('SessionLobby', { sessionId: session.id });
+      navigation.navigate('SessionLobby', { 
+        sessionId: session.id,
+        shouldPromptForDare,
+      });
       loadSessions(); // Refresh list
     } catch (error: any) {
       Alert.alert(
@@ -147,8 +164,23 @@ export default function SessionsHomeScreen({ navigation }: any) {
     }
   };
 
-  const handleSessionPress = (session: SessionWithProfile) => {
-    navigation.navigate('SessionLobby', { sessionId: session.id });
+  const handleSessionPress = async (session: SessionWithProfile) => {
+    if (!user) return;
+    
+    // Check if user has already submitted a dare for this session
+    try {
+      const membership = await getSessionMembership(session.id, user.id);
+      const shouldPromptForDare = !membership?.dare_submitted;
+      
+      navigation.navigate('SessionLobby', { 
+        sessionId: session.id,
+        shouldPromptForDare,
+      });
+    } catch (error) {
+      // If check fails, navigate anyway (user can still use chat)
+      console.error('Error checking membership:', error);
+      navigation.navigate('SessionLobby', { sessionId: session.id });
+    }
   };
 
   const handleLeaveChat = async (chat: SessionWithProfile) => {
