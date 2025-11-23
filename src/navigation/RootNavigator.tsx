@@ -26,6 +26,8 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import FeedScreen from '../screens/FeedScreen';
 import HomeScreen from '../screens/HomeScreen';
+import MyCapturesScreen from '../screens/MyCapturesScreen';
+import MyGoalsScreen from '../screens/MyGoalsScreen';
 import VideoCatalogScreen from '../screens/VideoCatalogScreen';
 import JoinSessionScreen from '../screens/JoinSessionScreen';
 import MasterMapScreen from '../screens/MasterMapScreen';
@@ -38,6 +40,9 @@ import SessionsHomeScreen from '../screens/SessionsHomeScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import SettingsNavigator from './SettingsNavigator';
+import { SwipeableTabWrapper } from '../components/navigation/SwipeableTabWrapper';
+import FadeInOnFocus from '../components/animation/FadeInOnFocus';
+import { triggerTabChangeHaptic } from '../utils/haptics';
 
 // Enable native screen optimizations
 enableScreens(true);
@@ -60,6 +65,8 @@ export type DrawerParamList = {
   Settings: undefined;
   Profile: undefined;
   Favorites: undefined;
+  MyCaptures: undefined;
+  MyGoals: undefined;
 };
 
 // Define the type for root stack navigation parameters
@@ -97,8 +104,24 @@ const drawerLightTheme = {
   background: '#FFFFFF',
 };
 
+// Tab route names in order (for swipe navigation)
+const TAB_ROUTE_NAMES = ['Home', 'Run', 'Chats', 'DareFeed'] as const;
+
 // Main tabs navigator (shown when user is logged in)
 function MainTabs() {
+  // Track initial mount to skip haptics on app load
+  const isInitialMount = React.useRef(true);
+  
+  const tabListeners = {
+    focus: () => {
+      // Skip haptics on initial mount (when app first loads)
+      if (isInitialMount.current) {
+        isInitialMount.current = false;
+        return;
+      }
+      triggerTabChangeHaptic();
+    },
+  };
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -129,33 +152,75 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={(props) => (
+          <SwipeableTabWrapper
+            routeNames={TAB_ROUTE_NAMES as string[]}
+            currentRouteName="Home"
+          >
+            <FadeInOnFocus>
+              <HomeScreen {...props} />
+            </FadeInOnFocus>
+          </SwipeableTabWrapper>
+        )}
         options={{
           title: 'Home',
           headerShown: false,
         }}
+        listeners={tabListeners}
       />
       <Tab.Screen
         name="Run"
-        component={RunScreen}
+        component={(props) => (
+          <SwipeableTabWrapper
+            routeNames={TAB_ROUTE_NAMES as string[]}
+            currentRouteName="Run"
+          >
+            <FadeInOnFocus>
+              <RunScreen {...props} />
+            </FadeInOnFocus>
+          </SwipeableTabWrapper>
+        )}
         options={{
           title: 'Run',
+          headerShown: false,
         }}
+        listeners={tabListeners}
       />
       <Tab.Screen
         name="Chats"
-        component={SessionsHomeScreen}
+        component={(props) => (
+          <SwipeableTabWrapper
+            routeNames={TAB_ROUTE_NAMES as string[]}
+            currentRouteName="Chats"
+          >
+            <FadeInOnFocus>
+              <SessionsHomeScreen {...props} />
+            </FadeInOnFocus>
+          </SwipeableTabWrapper>
+        )}
         options={{
           title: 'Chats',
+          headerShown: false,
         }}
+        listeners={tabListeners}
       />
       <Tab.Screen
         name="DareFeed"
-        component={DareFeedScreen}
+        component={(props) => (
+          <SwipeableTabWrapper
+            routeNames={TAB_ROUTE_NAMES as string[]}
+            currentRouteName="DareFeed"
+          >
+            <FadeInOnFocus>
+              <DareFeedScreen {...props} />
+            </FadeInOnFocus>
+          </SwipeableTabWrapper>
+        )}
         options={{
           title: 'Dare Feed',
           headerShown: false,
         }}
+        listeners={tabListeners}
       />
     </Tab.Navigator>
   );
@@ -221,6 +286,28 @@ function MainDrawer() {
           drawerIcon: ({ color, size }) => (
             <Ionicons name="heart-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Drawer.Screen
+        name="MyCaptures"
+        component={MyCapturesScreen}
+        options={{
+          drawerLabel: 'My Captures',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="albums-outline" size={size} color={color} />
+          ),
+          headerShown: false,
+        }}
+      />
+      <Drawer.Screen
+        name="MyGoals"
+        component={MyGoalsScreen}
+        options={{
+          drawerLabel: 'My Goals',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="flag-outline" size={size} color={color} />
+          ),
+          headerShown: false,
         }}
       />
     </Drawer.Navigator>

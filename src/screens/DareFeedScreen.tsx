@@ -3,6 +3,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Dimensions,
   FlatList,
   StyleSheet,
@@ -12,38 +13,78 @@ import {
   ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { fetchVideos } from '../../lib/videoService';
 import { VideoMetadata } from '../types/video';
-import FullScreenVideoModal from '../components/FullScreenVideoModal';
+import { useAuth } from '../../contexts/AuthContext';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-// Instagram Reels style: portrait aspect ratio (9:16)
-// Use 75% of screen width for better proportions
-const VIDEO_CARD_WIDTH = SCREEN_WIDTH * 0.75; // 75% of screen width
-const VIDEO_CARD_HEIGHT = VIDEO_CARD_WIDTH * (16 / 9); // 9:16 aspect ratio (portrait)
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// Full-height reels (accounting for tab bar ~80px)
+const REEL_HEIGHT = SCREEN_HEIGHT - 80;
 
-// Separate component for video preview item to use hooks
-interface VideoPreviewItemProps {
+// Skeleton loader component
+const SkeletonLoader = () => {
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width: SCREEN_WIDTH,
+          height: REEL_HEIGHT,
+          backgroundColor: '#050A0E',
+        },
+        {
+          opacity: pulseAnim,
+        },
+      ]}
+    />
+  );
+};
+
+// Separate component for reel item to use hooks
+interface ReelItemProps {
   video: VideoMetadata;
   index: number;
   isVisible: boolean;
-  onPress: () => void;
 }
 
-const VideoPreviewItem = React.memo(function VideoPreviewItem({ 
+const ReelItem = React.memo(function ReelItem({ 
   video, 
   index, 
   isVisible, 
-  onPress 
-}: VideoPreviewItemProps) {
+}: ReelItemProps) {
   const [hasError, setHasError] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isLiked, setIsLiked] = useState(false);
+  const { user } = useAuth();
   
   // Create video player - useVideoPlayer manages its own lifecycle
   const player = useVideoPlayer(video.video_url, (player) => {
     player.loop = true;
-    player.muted = true;
-    console.log(`[VideoPreviewItem ${index}] Player initialized for:`, video.video_url);
+    player.muted = false; // Unmute for reels
+    console.log(`[ReelItem ${index}] Player initialized for:`, video.video_url);
   });
 
   // Monitor player status and handle ready state
@@ -124,60 +165,137 @@ const VideoPreviewItem = React.memo(function VideoPreviewItem({
     if (!player) return;
 
     const currentStatus = player.status;
-    console.log(`[VideoPreviewItem ${index}] Visibility changed. isVisible: ${isVisible}, status: ${currentStatus}`);
+    console.log(`[ReelItem ${index}] Visibility changed. isVisible: ${isVisible}, status: ${currentStatus}`);
 
     // Only control playback if player is ready
     if (currentStatus === 'readyToPlay' || currentStatus === 'playing' || currentStatus === 'paused') {
       if (isVisible) {
-        console.log(`[VideoPreviewItem ${index}] Playing video`);
+        console.log(`[ReelItem ${index}] Playing video`);
         player.play();
+        setIsPlaying(true);
       } else {
-        console.log(`[VideoPreviewItem ${index}] Pausing video`);
+        console.log(`[ReelItem ${index}] Pausing video`);
         player.pause();
+        setIsPlaying(false);
       }
     }
   }, [isVisible, player, index]);
 
+  const togglePlay = useCallback(() => {
+    if (!player) return;
+    if (isPlaying) {
+      player.pause();
+      setIsPlaying(false);
+    } else {
+      player.play();
+      setIsPlaying(true);
+    }
+  }, [player, isPlaying]);
+
+  const handleLike = useCallback(() => {
+    setIsLiked(!isLiked);
+    // TODO: Implement like functionality
+  }, [isLiked]);
+
+  const handleShare = useCallback(() => {
+    // TODO: Implement share functionality
+    console.log('Share video:', video.id);
+  }, [video]);
+
+  const handleComments = useCallback(() => {
+    // TODO: Implement comments functionality
+    console.log('Open comments for video:', video.id);
+  }, [video]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log(`[VideoPreviewItem ${index}] Component unmounting, cleaning up`);
+      console.log(`[ReelItem ${index}] Component unmounting, cleaning up`);
       if (player) {
         player.pause();
       }
     };
   }, [player, index]);
 
+  // Get username from user_id (simplified - you may want to fetch actual profile)
+  const username = video.user_id ? `user_${video.user_id.slice(0, 6)}` : 'Unknown';
+
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={onPress}
-      style={styles.videoCard}
-    >
+    <View style={styles.reelContainer}>
       {hasError ? (
         <View style={styles.errorOverlay}>
           <Text style={styles.errorText}>Video unavailable</Text>
           <Text style={styles.errorSubtext}>Tap to try again</Text>
         </View>
       ) : (
-        <VideoView
-          player={player}
-          style={styles.previewVideo}
-          contentFit="cover"
-          nativeControls={false}
-          fullscreenOptions={{ enterFullscreenButton: false }}
-          onError={(e) => {
-            console.error(`[VideoPreviewItem ${index}] VideoView onError callback:`, {
-              error: e,
-              errorMessage: e?.message || 'Unknown error',
-              errorCode: e?.code || 'N/A',
-              videoUrl: video.video_url,
-            });
-            setHasError(true);
-          }}
-        />
+        <>
+          <VideoView
+            player={player}
+            style={styles.video}
+            contentFit="cover"
+            nativeControls={false}
+            fullscreenOptions={{ enterFullscreenButton: false }}
+            onError={(e) => {
+              console.error(`[ReelItem ${index}] VideoView onError callback:`, {
+                error: e,
+                errorMessage: e?.message || 'Unknown error',
+                errorCode: e?.code || 'N/A',
+                videoUrl: video.video_url,
+              });
+              setHasError(true);
+            }}
+          />
+
+          {/* Center play/pause button */}
+          {!isPlaying && (
+            <TouchableOpacity
+              style={styles.centerPlayButton}
+              onPress={togglePlay}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="play" size={32} color="#000000" />
+            </TouchableOpacity>
+          )}
+
+          {/* Bottom gradient with caption */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.bottomGradient}
+            pointerEvents="box-none"
+          >
+            <View style={styles.captionContainer}>
+              <Text style={styles.username}>@{username}</Text>
+              {(video.title || video.description) && (
+                <Text style={styles.caption} numberOfLines={2}>
+                  {video.title || video.description}
+                </Text>
+              )}
+            </View>
+          </LinearGradient>
+
+          {/* Right-side action column */}
+          <View style={styles.actionsColumn} pointerEvents="box-none">
+            <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+              <Ionicons 
+                name={isLiked ? "heart" : "heart-outline"} 
+                size={26} 
+                color={isLiked ? "#03CA59" : "#FFFFFF"} 
+              />
+              <Text style={styles.actionLabel}>0</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={handleComments}>
+              <Ionicons name="chatbubble-outline" size={24} color="#FFFFFF" />
+              <Text style={styles.actionLabel}>0</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+              <Ionicons name="arrow-redo-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </>
       )}
-    </TouchableOpacity>
+    </View>
   );
 });
 
@@ -186,8 +304,6 @@ export default function DareFeedScreen() {
   const [videos, setVideos] = useState<VideoMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedVideo, setSelectedVideo] = useState<VideoMetadata | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
   const [visibleIndices, setVisibleIndices] = useState<Set<number>>(new Set());
 
   // Check if URL is accessible
@@ -285,19 +401,7 @@ export default function DareFeedScreen() {
     minimumViewTime: 100, // Minimum time item must be visible
   }).current;
 
-  const handleVideoPress = useCallback((video: VideoMetadata) => {
-    console.log('[DareFeedScreen] Video pressed:', video.video_url);
-    setSelectedVideo(video);
-    setModalVisible(true);
-  }, []);
-
-  const handleCloseModal = useCallback(() => {
-    console.log('[DareFeedScreen] Closing modal');
-    setModalVisible(false);
-    setSelectedVideo(null);
-  }, []);
-
-  const renderVideoItem = useCallback(({ item, index }: { item: VideoMetadata; index: number }) => {
+  const renderReelItem = useCallback(({ item, index }: { item: VideoMetadata; index: number }) => {
     // Validate URL before rendering
     if (!item.video_url || !item.video_url.startsWith('http')) {
       console.warn(`[DareFeedScreen] Skipping video ${index} with invalid URL:`, item.video_url);
@@ -305,21 +409,19 @@ export default function DareFeedScreen() {
     }
 
     return (
-      <VideoPreviewItem
+      <ReelItem
         video={item}
         index={index}
         isVisible={visibleIndices.has(index)}
-        onPress={() => handleVideoPress(item)}
       />
     );
-  }, [visibleIndices, handleVideoPress]);
+  }, [visibleIndices]);
 
   if (loading && videos.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.accent} />
-          <Text style={[styles.loadingText, { color: theme.mutedText }]}>Loading videos...</Text>
+          <SkeletonLoader />
         </View>
       </SafeAreaView>
     );
@@ -327,10 +429,10 @@ export default function DareFeedScreen() {
 
   if (error && videos.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: theme.text }]}>{error}</Text>
-          <Text style={[styles.errorSubtext, { color: theme.mutedText }]}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorSubtext}>
             Pull down to retry
           </Text>
         </View>
@@ -339,63 +441,104 @@ export default function DareFeedScreen() {
   }
 
   return (
-    <>
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-        <FlatList
-          data={videos}
-          renderItem={renderVideoItem}
-          keyExtractor={(item) => item.id || `video-${item.video_url}`}
-          contentContainerStyle={styles.listContent}
-          refreshing={loading}
-          onRefresh={loadVideos}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
-          pagingEnabled={false}
-          snapToInterval={VIDEO_CARD_HEIGHT + 16}
-          decelerationRate="fast"
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, { color: theme.mutedText }]}>
-                No videos yet. Record and upload your first video!
-              </Text>
-            </View>
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      </SafeAreaView>
-
-      {/* Full-screen video modal */}
-      {selectedVideo && (
-        <FullScreenVideoModal
-          visible={modalVisible}
-          videoUrl={selectedVideo.video_url}
-          onClose={handleCloseModal}
-        />
-      )}
-    </>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <FlatList
+        data={videos}
+        renderItem={renderReelItem}
+        keyExtractor={(item) => item.id || `video-${item.video_url}`}
+        contentContainerStyle={styles.listContent}
+        refreshing={loading}
+        onRefresh={loadVideos}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        pagingEnabled
+        snapToAlignment="center"
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              No videos yet. Record and upload your first video!
+            </Text>
+          </View>
+        }
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000000',
   },
   listContent: {
-    padding: 8,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
-  videoCard: {
-    width: VIDEO_CARD_WIDTH,
-    height: VIDEO_CARD_HEIGHT,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: '#1B1B1B',
-    marginBottom: 16,
-    alignSelf: 'center',
+  reelContainer: {
+    width: SCREEN_WIDTH,
+    height: REEL_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
   },
-  previewVideo: {
+  video: {
     width: '100%',
     height: '100%',
+  },
+  centerPlayButton: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '50%',
+    marginTop: -32,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#03CA59',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bottomGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  captionContainer: {
+    marginBottom: 20,
+  },
+  username: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  caption: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+  },
+  actionsColumn: {
+    position: 'absolute',
+    right: 12,
+    bottom: 80,
+    alignItems: 'center',
+  },
+  actionButton: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  actionLabel: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '600',
   },
   errorOverlay: {
     width: '100%',
@@ -409,19 +552,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+    textAlign: 'center',
   },
   errorSubtext: {
     color: '#999999',
     fontSize: 12,
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
   },
   errorContainer: {
     flex: 1,
@@ -429,25 +570,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  errorSubtext: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 64,
-    width: SCREEN_WIDTH - 32,
+    width: SCREEN_WIDTH,
   },
   emptyText: {
     fontSize: 16,
     textAlign: 'center',
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });
 

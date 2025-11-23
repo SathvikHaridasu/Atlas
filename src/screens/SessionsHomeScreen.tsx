@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useAuth } from '../../contexts/AuthContext';
+import { PillButton } from '../components/ui/PillButton';
 import {
   createSession,
   getUserSessions,
@@ -228,30 +228,42 @@ export default function SessionsHomeScreen({ navigation }: any) {
         rightThreshold={40}
       >
         <TouchableOpacity
-          style={styles.chatRow}
+          style={styles.chatItem}
           onPress={() => handleSessionPress(item)}
           activeOpacity={0.8}
         >
-          {/* Left avatar */}
-          <View style={styles.avatarContainer}>
+          {/* Avatar + status dot */}
+          <View style={styles.avatarWrapper}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} contentFit="cover" />
+              <Image source={{ uri: avatarUrl }} style={styles.avatarCircle} contentFit="cover" />
             ) : (
-              <View style={styles.avatarFallback}>
+              <View style={styles.avatarCircle}>
                 <Text style={styles.avatarInitial}>{initial}</Text>
               </View>
             )}
+            {/* Optional: status dot for active chats */}
+            {/* <View style={styles.statusDot} /> */}
           </View>
 
-          {/* Middle text */}
+          {/* Text content */}
           <View style={styles.chatTextContainer}>
-            <Text style={styles.chatName}>{item.name}</Text>
-            <Text style={styles.chatCode}>Join Code: {item.code || item.join_code}</Text>
-            {dateRange && <Text style={styles.chatDates}>{dateRange}</Text>}
+            <Text style={styles.chatTitle} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.chatSubtitle} numberOfLines={1}>
+              Join Code: {item.code || item.join_code}
+            </Text>
+            {dateRange && (
+              <Text style={styles.chatMeta} numberOfLines={1}>
+                {dateRange}
+              </Text>
+            )}
           </View>
 
-          {/* Right arrow */}
-          <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+          {/* Right chevron */}
+          <View style={styles.chatRight}>
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
+          </View>
         </TouchableOpacity>
       </Swipeable>
     );
@@ -274,35 +286,36 @@ export default function SessionsHomeScreen({ navigation }: any) {
       <StatusBar barStyle="light-content" />
 
       <View style={styles.container}>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity onPress={handleCreateSession} style={styles.buttonWrapper}>
-            <LinearGradient
-              colors={['#03CA59', '#16DB7E']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradientButton}
-            >
-              <Text style={styles.gradientButtonText}>Create Chat</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleJoinSession} style={styles.buttonWrapper}>
-            <LinearGradient
-              colors={['#3B82F6', '#6366F1']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradientButton}
-            >
-              <Text style={styles.gradientButtonText}>Join Chat</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft} />
+          <Text style={styles.headerTitle}>Chats</Text>
+          <View style={styles.headerRight} />
         </View>
 
+        {/* Create/Join buttons */}
+        <View style={styles.actionRow}>
+          <PillButton
+            label="Create Chat"
+            onPress={handleCreateSession}
+            variant="primary"
+            style={styles.buttonWrapper}
+          />
+          <PillButton
+            label="Join Chat"
+            onPress={handleJoinSession}
+            variant="blue"
+            style={styles.buttonWrapper}
+          />
+        </View>
+
+        {/* Chats list */}
         <FlatList
           data={sessions}
           keyExtractor={(item) => item.id}
           renderItem={renderChatItem}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No chats yet. Create or join one!</Text>
@@ -429,65 +442,101 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
   },
-  buttonRow: {
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 10,
+  },
+  headerLeft: {
+    width: 24,
+  },
+  headerRight: {
+    width: 24,
+    alignItems: 'flex-end',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 10,
   },
   buttonWrapper: {
     flex: 1,
-    marginHorizontal: 6,
-  },
-  gradientButton: {
-    paddingVertical: 14,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gradientButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
   },
   listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: 12,
     paddingBottom: 24,
   },
-  chatRow: {
+  chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0B1220',
-    borderRadius: 18,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginTop: 12,
+    borderRadius: 14,
+    backgroundColor: '#050A0E',
+    marginBottom: 6,
   },
-  avatarContainer: {
-    marginRight: 12,
-  },
-  avatarImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#111827',
-  },
-  avatarFallback: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#03CA59',
+  avatarWrapper: {
+    marginRight: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#03CA59',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   avatarInitial: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 18,
+  },
+  statusDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#03CA59',
+    borderWidth: 2,
+    borderColor: '#000000',
   },
   chatTextContainer: {
     flex: 1,
+  },
+  chatTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  chatSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    marginBottom: 1,
+  },
+  chatMeta: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+  },
+  chatRight: {
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // Legacy session styles (kept to avoid changing anything else, even if unused now)
   sessionItem: {
@@ -530,22 +579,6 @@ const styles = StyleSheet.create({
   },
   sessionInfo: {
     flex: 1,
-  },
-  chatName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#F9FAFB',
-    marginBottom: 2,
-  },
-  chatCode: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginBottom: 2,
-  },
-  chatDates: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
   },
   swipeDelete: {
     backgroundColor: '#DC2626',
