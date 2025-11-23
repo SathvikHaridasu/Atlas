@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import * as Location from 'expo-location';
@@ -120,16 +120,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <Ionicons name="footsteps" size={26} color={theme.accent} />
           <Text style={[styles.appTitle, { color: theme.text }]}>Atlas Run</Text>
-        </View>
-
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={handleViewChallenges}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="terrain" size={24} color={theme.accent} />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -316,7 +306,6 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -333,13 +322,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginLeft: 8,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconButton: {
-    padding: 8,
   },
   scrollView: {
     flex: 1,

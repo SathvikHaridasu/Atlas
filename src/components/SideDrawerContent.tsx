@@ -1,5 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { DrawerContentScrollView, DrawerContentComponentProps, DrawerNavigationProp } from '@react-navigation/drawer';
+import {
+  DrawerContentScrollView,
+  DrawerContentComponentProps,
+  DrawerNavigationProp,
+} from '@react-navigation/drawer';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
@@ -33,9 +37,12 @@ export default function SideDrawerContent(props: DrawerContentComponentProps) {
 
   const avatarUrl = profile?.avatar_url;
 
-  const handleNavigate = (drawerRoute?: keyof DrawerParamList, stackRoute?: keyof RootStackParamList) => {
+  const handleNavigate = (
+    drawerRoute?: keyof DrawerParamList,
+    stackRoute?: keyof RootStackParamList,
+  ) => {
     props.navigation.closeDrawer();
-    
+
     if (drawerRoute) {
       // Navigate within drawer
       drawerNavigation.navigate(drawerRoute);
@@ -66,29 +73,19 @@ export default function SideDrawerContent(props: DrawerContentComponentProps) {
       stackRoute: 'Camera',
     },
     {
-      label: 'My Captures',
-      icon: 'albums-outline',
-      drawerRoute: 'MyCaptures',
-      isActive: currentRoute === 'MyCaptures',
-    },
-    {
       label: 'My Goals',
       icon: 'flag-outline',
       drawerRoute: 'MyGoals',
       isActive: currentRoute === 'MyGoals',
     },
+    // ✅ keep Missions from Running-Final
     {
       label: 'Missions',
       icon: 'rocket-outline',
       drawerRoute: 'SideMissions',
       isActive: currentRoute === 'SideMissions',
     },
-    {
-      label: 'Favorites',
-      icon: 'heart-outline',
-      drawerRoute: 'Favorites',
-      isActive: currentRoute === 'Favorites',
-    },
+    // ❌ drop Favorites from the merge
     {
       label: 'Profile',
       icon: 'person-outline',
@@ -136,32 +133,34 @@ export default function SideDrawerContent(props: DrawerContentComponentProps) {
 
           {/* Menu Items */}
           <View style={styles.menuSection}>
-        {menuItems.map((item, index) => {
-          const isActive = item.isActive || false;
-          const iconColor = isActive ? theme.accent : theme.mutedText;
-          const labelColor = isActive ? theme.accent : theme.mutedText;
+            {menuItems.map((item, index) => {
+              const isActive = item.isActive || false;
+              const iconColor = isActive ? theme.accent : theme.mutedText;
+              const labelColor = isActive ? theme.accent : theme.mutedText;
 
-          return (
-            <React.Fragment key={index}>
-              {item.isDivider && <View style={[styles.divider, { backgroundColor: theme.border }]} />}
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  if (item.onPress) {
-                    item.onPress();
-                  } else {
-                    handleNavigate(item.drawerRoute, item.stackRoute);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name={item.icon} size={24} color={iconColor} />
-                <Text style={[styles.menuLabel, { color: labelColor }]}>{item.label}</Text>
-              </TouchableOpacity>
-            </React.Fragment>
-          );
-        })}
-      </View>
+              return (
+                <React.Fragment key={index}>
+                  {item.isDivider && (
+                    <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                  )}
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      if (item.onPress) {
+                        item.onPress();
+                      } else {
+                        handleNavigate(item.drawerRoute, item.stackRoute);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name={item.icon} size={24} color={iconColor} />
+                    <Text style={[styles.menuLabel, { color: labelColor }]}>{item.label}</Text>
+                  </TouchableOpacity>
+                </React.Fragment>
+              );
+            })}
+          </View>
         </DrawerContentScrollView>
       </View>
     </View>
@@ -251,4 +250,3 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
 });
-

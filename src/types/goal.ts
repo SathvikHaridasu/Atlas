@@ -1,4 +1,5 @@
-export type GoalType = 'distance' | 'time' | 'sessions' | 'points';
+export type GoalType = 'distance' | 'time' | 'sessions' | 'points' | 'custom';
+export type GoalTimeframe = 'weekly' | 'monthly' | 'single';
 
 export interface Goal {
   id: string;
@@ -10,6 +11,8 @@ export interface Goal {
   durationWeeks: number;
   startDate: string;       // ISO string
   createdAt: string;       // ISO string
+  timeframe?: GoalTimeframe; // 'weekly' | 'monthly' | 'single'
+  isActive: boolean;        // Whether the goal is currently active
 }
 
 // Helper to map goal type → unit label
