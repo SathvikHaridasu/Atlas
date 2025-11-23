@@ -1,17 +1,25 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React from 'react';
+import * as Location from 'expo-location';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import MapView, { Polygon, Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRunStats } from '../contexts/RunStatsContext';
 import { useAppTheme } from '../contexts/ThemeContext';
+import { SAMPLE_ZONES } from '../lib/sampleZones';
 
 export default function HomeScreen() {
   const { user, profile, loading } = useAuth();
   const { points, totalDistanceMeters, elapsedSeconds } = useRunStats();
   const { theme } = useAppTheme();
   const navigation = useNavigation();
+
+  const [miniRegion, setMiniRegion] = useState<Region | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const myZones = SAMPLE_ZONES.filter((z) => z.group === "ME");
 
   const displayName =
     profile?.full_name ||
@@ -45,6 +53,33 @@ export default function HomeScreen() {
 
   const weeklyGoalKm = 10;
   const weekProgress = Math.min(parseFloat(distanceKm) / weeklyGoalKm, 1);
+
+  useEffect(() => {
+    const loadLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setLocationError("Location permission denied");
+          return;
+        }
+
+        const loc = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = loc.coords;
+
+        setMiniRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.03,
+          longitudeDelta: 0.03,
+        });
+      } catch (err) {
+        console.warn("Error getting home location", err);
+        setLocationError("Error getting location");
+      }
+    };
+
+    loadLocation();
+  }, []);
 
   if (loading) {
     return (
@@ -117,6 +152,48 @@ export default function HomeScreen() {
           <Text style={[styles.progressText, { color: theme.mutedText }]}>
             {Math.round(weekProgress * 100)}% complete
           </Text>
+        </View>
+
+        {/* Mini Map card */}
+        <View style={[styles.miniMapCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.miniMapHeader}>
+            <Text style={[styles.masterMapTitle, { color: theme.text }]}>Your territory</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("MasterMap" as never)}>
+              <Text style={styles.miniMapLink}>Open map</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.miniMapContainer}>
+            {miniRegion ? (
+              <MapView
+                style={StyleSheet.absoluteFill}
+                provider="google"
+                initialRegion={miniRegion}
+                showsUserLocation
+                scrollEnabled={false}
+                zoomEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+                pointerEvents="none"
+              >
+                {myZones.map((zone) => (
+                  <Polygon
+                    key={zone.id}
+                    coordinates={zone.coordinates}
+                    strokeWidth={2}
+                    strokeColor="rgba(3,202,89,1)"
+                    fillColor="rgba(3,202,89,0.3)"
+                  />
+                ))}
+              </MapView>
+            ) : (
+              <View style={styles.miniMapPlaceholder}>
+                <Text style={[styles.miniMapPlaceholderText, { color: theme.mutedText }]}>
+                  {locationError ?? "Loading your area..."}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Quick actions */}
@@ -274,5 +351,40 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 12,
     textAlign: 'center',
+  },
+  miniMapCard: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  miniMapHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  masterMapTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  miniMapContainer: {
+    height: 140,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#050505',
+  },
+  miniMapLink: {
+    fontSize: 12,
+    color: '#03CA59',
+    fontWeight: '500',
+  },
+  miniMapPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniMapPlaceholderText: {
+    fontSize: 12,
   },
 });

@@ -78,3 +78,11 @@ Your app code in `contexts/AuthContext.tsx` and `lib/auth.ts` is already correct
 
 After running the SQL script, the RLS error should be resolved!
 
+
+
+
+<!-- ======= -->
+
+<!-- >>>>>>> main -->
+
+

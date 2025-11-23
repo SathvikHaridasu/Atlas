@@ -158,7 +158,7 @@ export default function ChatScreen() {
               color={inputText.trim() ? '#000' : theme.mutedText}
             />
           </TouchableOpacity>
-        </View>
+      </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
