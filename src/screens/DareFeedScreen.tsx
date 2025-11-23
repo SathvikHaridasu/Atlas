@@ -6,9 +6,14 @@ import { useAppTheme } from '../contexts/ThemeContext';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Calculate grid item size for 3 columns with padding and gaps
+// Items are vertical rectangles with height:width ratio of 1.4:1
 const CONTAINER_PADDING = 16;
 const GAP = 8;
-const ITEM_SIZE = (SCREEN_WIDTH - CONTAINER_PADDING * 2 - GAP * 2) / 3;
+const HEIGHT_TO_WIDTH_RATIO = 1.4;
+// For 3 columns: 3 * width + 2 * GAP + 2 * CONTAINER_PADDING = SCREEN_WIDTH
+// height = 1.4 * width
+const ITEM_WIDTH = (SCREEN_WIDTH - CONTAINER_PADDING * 2 - GAP * 2) / 3;
+const ITEM_HEIGHT = ITEM_WIDTH * HEIGHT_TO_WIDTH_RATIO;
 
 // Generate placeholder data - will be replaced with video data later
 const PLACEHOLDER_COUNT = 30;
@@ -66,8 +71,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   placeholderBox: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
+    width: ITEM_WIDTH,
+    height: ITEM_HEIGHT,
     backgroundColor: '#1B1B1B',
     borderRadius: 10,
   },
