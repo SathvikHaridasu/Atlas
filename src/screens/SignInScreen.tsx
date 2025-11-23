@@ -334,11 +334,11 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logo: {
-    width: 140,
-    height: 140,
+    width: 220,
+    height: 220,
     resizeMode: 'contain',
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   appName: {
     color: '#FFFFFF',
