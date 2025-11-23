@@ -3,6 +3,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './contexts/AuthContext';
 import { FeedProvider } from './src/contexts/FeedContext';
+import { GoalsProvider } from './src/contexts/GoalsContext';
 import { MapStateProvider } from './src/contexts/MapStateContext';
 import { RunStatsProvider } from './src/contexts/RunStatsContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
@@ -16,9 +17,11 @@ export default function App() {
           <AuthProvider>
             <RunStatsProvider>
               <FeedProvider>
-                <MapStateProvider>
-                  <RootNavigator />
-                </MapStateProvider>
+                <GoalsProvider>
+                  <MapStateProvider>
+                    <RootNavigator />
+                  </MapStateProvider>
+                </GoalsProvider>
               </FeedProvider>
             </RunStatsProvider>
           </AuthProvider>

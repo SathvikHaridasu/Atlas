@@ -19,6 +19,7 @@ import SideDrawerContent from '../components/SideDrawerContent';
 import CameraScreen from '../screens/CameraScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import ChatScreen from '../screens/ChatScreen';
+import CreateGoalScreen from '../screens/CreateGoalScreen';
 import CreateSessionScreen from '../screens/CreateSessionScreen';
 import DareFeedScreen from '../screens/DareFeedScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
@@ -77,6 +78,7 @@ export type RootStackParamList = {
     sessionWeekEnd?: string;
   };
   Challenges: undefined;
+  CreateGoal: undefined;
   MasterMap: undefined;
   Chat: undefined;
   Leaderboard: undefined;
@@ -320,6 +322,14 @@ export default function RootNavigator() {
               title: 'Challenges',
               headerStyle: { backgroundColor: isDark ? '#101010' : '#F4F4F4' },
               headerTintColor: isDark ? '#F9FAFB' : '#111111',
+            }}
+          />
+          <Stack.Screen
+            name="CreateGoal"
+            component={CreateGoalScreen}
+            options={{
+              headerShown: false,
+              presentation: 'modal',
             }}
           />
           <Stack.Screen
