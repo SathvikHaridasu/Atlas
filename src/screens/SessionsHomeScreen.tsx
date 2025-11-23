@@ -274,8 +274,6 @@ export default function SessionsHomeScreen({ navigation }: any) {
       <StatusBar barStyle="light-content" />
 
       <View style={styles.container}>
-        <Text style={styles.sectionTitle}>Your Chats</Text>
-
         <View style={styles.buttonRow}>
           <TouchableOpacity onPress={handleCreateSession} style={styles.buttonWrapper}>
             <LinearGradient
@@ -415,11 +413,11 @@ export default function SessionsHomeScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#000000',
   },
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#000000',
   },
   center: {
     flex: 1,
@@ -431,19 +429,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#F9FAFB',
-    textAlign: 'left',
-    marginHorizontal: 20,
-    marginTop: 16,
-  },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginHorizontal: 20,
-    marginTop: 16,
+    marginTop: 8,
   },
   buttonWrapper: {
     flex: 1,
