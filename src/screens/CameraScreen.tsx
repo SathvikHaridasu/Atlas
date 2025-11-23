@@ -1,10 +1,10 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -17,7 +17,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HeaderHomeButton from '../components/HeaderHomeButton';
 import SaveVideoButton from '../components/SaveVideoButton';
-import VideoUploadModal from '../components/VideoUploadModal';
 import { useFeed } from '../contexts/FeedContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { useSaveVideo } from '../hooks/useSaveVideo';
@@ -63,8 +62,17 @@ export default function CameraScreen() {
 
   // Cleanup function to stop camera and clear resources
   const cleanupCamera = useCallback(() => {
-    // Stop recording if active
+    // Stop recording if active - but only if camera ref exists
     if (isRecording) {
+      // Check if camera exists before trying to stop recording
+      if (cameraRef.current) {
+        try {
+          cameraRef.current.stopRecording();
+        } catch (error) {
+          console.error('Error stopping recording in cleanup:', error);
+        }
+      }
+      
       setIsRecording(false);
 
       // Stop the recording timer
@@ -87,10 +95,14 @@ export default function CameraScreen() {
 
   const handleStopRecording = useCallback(async () => {
     try {
+      // Comprehensive guard: check camera ref exists
       if (!cameraRef.current) {
-        throw new Error('Camera ref not available');
+        console.warn('Camera ref not available for stopRecording');
+        setIsRecording(false);
+        return;
       }
 
+      // Guard: check if actually recording
       if (!isRecording || isStoppingRef.current) {
         if (isStoppingRef.current) {
           console.warn('Recording stop already in progress');
@@ -111,8 +123,24 @@ export default function CameraScreen() {
       setElapsedMs(0);
       progressAnimRef.current.setValue(0);
 
+      // Guard: verify camera still exists before calling stopRecording
+      if (!cameraRef.current) {
+        console.warn('Camera ref lost before stopRecording call');
+        setIsRecording(false);
+        isStoppingRef.current = false;
+        return;
+      }
+
       // Stop actual video recording - this will cause the recordAsync promise to resolve
-      cameraRef.current.stopRecording();
+      try {
+        cameraRef.current.stopRecording();
+      } catch (error) {
+        console.error('Error calling stopRecording:', error);
+        setIsRecording(false);
+        recordingPromiseRef.current = null;
+        isStoppingRef.current = false;
+        throw error;
+      }
 
       // The promise will resolve in handleStartRecording's then block
       // We don't need to wait for it here since it's already handled
@@ -123,7 +151,7 @@ export default function CameraScreen() {
       recordingPromiseRef.current = null;
       isStoppingRef.current = false;
     }
-  }, [cameraRef, isRecording]);
+  }, [isRecording]);
 
   useEffect(() => {
     if (isRecording) {
@@ -171,11 +199,16 @@ export default function CameraScreen() {
   // Cleanup on unmount - stop recording if active
   useEffect(() => {
     return () => {
-      if (isRecording && cameraRef.current) {
-        try {
-          cameraRef.current.stopRecording();
-        } catch (error) {
-          console.error('Error stopping recording on unmount:', error);
+      // Guard: only stop if recording and camera exists
+      if (isRecording) {
+        if (cameraRef.current) {
+          try {
+            cameraRef.current.stopRecording();
+          } catch (error) {
+            console.error('Error stopping recording on unmount:', error);
+          }
+        } else {
+          console.warn('Camera ref not available during unmount cleanup');
         }
       }
     };
@@ -229,10 +262,14 @@ export default function CameraScreen() {
 
   const stopRecordingWithoutNavigation = useCallback(async () => {
     try {
+      // Comprehensive guard: check camera ref exists
       if (!cameraRef.current) {
+        console.warn('Camera ref not available for stopRecordingWithoutNavigation');
+        setIsRecording(false);
         return;
       }
 
+      // Guard: check if actually recording
       if (!isRecording || isStoppingRef.current) {
         return;
       }
@@ -248,8 +285,24 @@ export default function CameraScreen() {
       setElapsedMs(0);
       progressAnimRef.current.setValue(0);
 
+      // Guard: verify camera still exists before calling stopRecording
+      if (!cameraRef.current) {
+        console.warn('Camera ref lost before stopRecording call');
+        setIsRecording(false);
+        isStoppingRef.current = false;
+        return;
+      }
+
       // Stop actual video recording - this will cause the recordAsync promise to resolve
-      cameraRef.current.stopRecording();
+      try {
+        cameraRef.current.stopRecording();
+      } catch (error) {
+        console.error('Error calling stopRecording:', error);
+        setIsRecording(false);
+        recordingPromiseRef.current = null;
+        isStoppingRef.current = false;
+        throw error;
+      }
 
       // Wait for the recording promise to resolve to get the URI
       if (recordingPromiseRef.current) {
@@ -269,22 +322,42 @@ export default function CameraScreen() {
       recordingPromiseRef.current = null;
       isStoppingRef.current = false;
     }
-  }, [cameraRef, isRecording]);
+  }, [isRecording]);
 
   const handleClose = async () => {
-    // Stop recording and cleanup
+    // Prevent navigation during active recording - wait for recording to stop
     if (isRecording) {
+      // Stop recording first and wait for it to complete
       await stopRecordingWithoutNavigation();
+      
+      // Wait a bit for the recording to fully stop
+      // The promise should resolve, but we'll wait a moment to be safe
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      // Double-check recording has stopped
+      if (isRecording) {
+        console.warn('Recording still active after stop attempt, waiting...');
+        // Wait a bit more
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
 
     // Cleanup camera resources
     cleanupCamera();
 
-    // Navigate back to unmount the screen properly
-    navigation.goBack();
+    // Only navigate if not recording (safety check)
+    if (!isRecording) {
+      navigation.goBack();
+    } else {
+      console.warn('Cannot navigate: recording still active');
+      Alert.alert('Please wait', 'Recording is still in progress. Please wait for it to finish.');
+    }
   };
 
   const handlePreviewTap = () => {
+    // Disable camera flip during recording
+    if (isRecording) return;
+    
     const now = Date.now();
     if (lastTap && now - lastTap < 300) {
       // Double tap detected
@@ -296,10 +369,14 @@ export default function CameraScreen() {
   };
 
   const handleFlipCamera = () => {
+    // Disable during recording to prevent remounts
+    if (isRecording) return;
     setCameraFacing((prev) => (prev === 'back' ? 'front' : 'back'));
   };
 
   const handleToggleFlash = () => {
+    // Disable during recording to prevent remounts
+    if (isRecording) return;
     setFlashMode((prev) => {
       if (prev === 'auto') return 'on';
       if (prev === 'on') return 'off';
@@ -308,10 +385,14 @@ export default function CameraScreen() {
   };
 
   const handleToggleFilter = () => {
+    // Disable during recording
+    if (isRecording) return;
     setActiveFilterId((prev) => (prev ? undefined : 'filter1'));
   };
 
   const handleToggleBeauty = () => {
+    // Disable during recording
+    if (isRecording) return;
     setBeautyEnabled((prev) => !prev);
   };
 
@@ -331,10 +412,14 @@ export default function CameraScreen() {
 
   const handleStartRecording = useCallback(async () => {
     try {
+      // Comprehensive guard: check camera ref exists
       if (!cameraRef.current) {
-        throw new Error('Camera ref not available');
+        console.warn('Camera ref not available for startRecording');
+        Alert.alert('Error', 'Camera not ready. Please try again.');
+        return;
       }
 
+      // Guard: check if already recording
       if (isRecording) {
         console.warn('Recording already in progress');
         return;
@@ -344,10 +429,27 @@ export default function CameraScreen() {
       setElapsedMs(0);
       shouldNavigateOnCompleteRef.current = true; // Default to navigating after recording
 
+      // Guard: verify camera still exists before calling recordAsync
+      if (!cameraRef.current) {
+        console.warn('Camera ref lost before recordAsync call');
+        setIsRecording(false);
+        Alert.alert('Error', 'Camera not ready. Please try again.');
+        return;
+      }
+
       // Start actual video recording - recordAsync returns a Promise that resolves when recording stops
-      const recordingPromise = cameraRef.current.recordAsync({
-        maxDuration: duration,
-      });
+      let recordingPromise: Promise<{ uri: string }>;
+      try {
+        const promise = cameraRef.current.recordAsync({
+          maxDuration: duration,
+        });
+        recordingPromise = promise as Promise<{ uri: string }>;
+      } catch (error) {
+        console.error('Error calling recordAsync:', error);
+        setIsRecording(false);
+        Alert.alert('Error', 'Failed to start recording. Please try again.');
+        return;
+      }
 
       recordingPromiseRef.current = recordingPromise as Promise<{ uri: string }>;
 
@@ -415,9 +517,66 @@ export default function CameraScreen() {
     setRecordedVideoUri(null);
     setRecordedDuration(0);
     setLastVideoUri(null);
+    setShowPostModal(false);
     // Stay on camera screen, ready to record again
   };
 
+  const handlePostToFeed = useCallback(async () => {
+    if (!recordedVideoUri || !sessionId) {
+      console.warn('Cannot post: missing video URI or session ID');
+      Alert.alert('Error', 'Cannot post video. Missing required information.');
+      return;
+    }
+
+    try {
+      // Create a feed post with the recorded video
+      const post: FeedPost = {
+        id: `post_${Date.now()}`,
+        userId: sessionId,
+        type: 'video',
+        videoUri: recordedVideoUri,
+        createdAt: new Date().toISOString(),
+        durationSeconds: recordedDuration,
+      };
+
+      // Add post to feed
+      addPost(post);
+
+      // Close modal and reset state
+      setShowPostModal(false);
+      setRecordedVideoUri(null);
+      setRecordedDuration(0);
+      setLastVideoUri(null);
+
+      // Optionally navigate to feed
+      // navigation.navigate('Feed' as never);
+    } catch (error) {
+      console.error('Error posting to feed:', error);
+      Alert.alert('Error', 'Failed to post video to feed. Please try again.');
+    }
+  }, [recordedVideoUri, sessionId, addPost]);
+
+  // Memoize CameraView to prevent remounts during recording
+  // Controls are disabled during recording, so cameraFacing and flashMode won't change
+  // IMPORTANT: This hook must be called BEFORE any early returns to maintain hook order
+  const memoizedCameraView = useMemo(() => {
+    if (!permission?.granted) {
+      return null;
+    }
+    return (
+      <CameraView
+        ref={cameraRef}
+        style={styles.camera}
+        facing={cameraFacing}
+        flash={flashMode}
+        mode="video"
+      />
+    );
+    // cameraFacing and flashMode are in dependencies but won't change during recording
+    // because controls are disabled, preventing remounts during active recording
+  }, [permission?.granted, cameraFacing, flashMode]);
+
+  // Early returns AFTER all hooks have been called
   if (!permission) {
     return (
       <View style={styles.permissionContainer}>
@@ -450,14 +609,9 @@ export default function CameraScreen() {
           style={styles.cameraContainer}
           activeOpacity={1}
           onPress={handlePreviewTap}
+          disabled={isRecording}
         >
-          <CameraView
-            ref={cameraRef}
-            style={styles.camera}
-            facing={cameraFacing}
-            flash={flashMode}
-            mode="video"
-          />
+          {memoizedCameraView}
         </TouchableOpacity>
 
         {/* Top Gradient Overlay */}
@@ -496,44 +650,64 @@ export default function CameraScreen() {
                 style={[styles.controlIcon, { marginLeft: 16 }]}
                 onPress={handleFlipCamera}
                 activeOpacity={0.8}
+                disabled={isRecording}
               >
                 <Ionicons
                   name="camera-reverse"
                   size={24}
-                  color={cameraFacing === 'front' ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
+                  color={isRecording 
+                    ? 'rgba(249, 250, 251, 0.3)' 
+                    : cameraFacing === 'front' 
+                    ? '#03CA59' 
+                    : 'rgba(249, 250, 251, 0.7)'}
                 />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.controlIcon}
                 onPress={handleToggleFlash}
                 activeOpacity={0.8}
+                disabled={isRecording}
               >
                 <Ionicons
                   name={flashIconName}
                   size={24}
-                  color={flashMode !== 'off' ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
+                  color={isRecording 
+                    ? 'rgba(249, 250, 251, 0.3)' 
+                    : flashMode !== 'off' 
+                    ? '#03CA59' 
+                    : 'rgba(249, 250, 251, 0.7)'}
                 />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.controlIcon}
                 onPress={handleToggleFilter}
                 activeOpacity={0.8}
+                disabled={isRecording}
               >
                 <MaterialIcons
                   name="filter"
                   size={24}
-                  color={activeFilterId ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
+                  color={isRecording 
+                    ? 'rgba(249, 250, 251, 0.3)' 
+                    : activeFilterId 
+                    ? '#03CA59' 
+                    : 'rgba(249, 250, 251, 0.7)'}
                 />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.controlIcon}
                 onPress={handleToggleBeauty}
                 activeOpacity={0.8}
+                disabled={isRecording}
               >
                 <MaterialIcons
                   name="face"
                   size={24}
-                  color={beautyEnabled ? '#03CA59' : 'rgba(249, 250, 251, 0.7)'}
+                  color={isRecording 
+                    ? 'rgba(249, 250, 251, 0.3)' 
+                    : beautyEnabled 
+                    ? '#03CA59' 
+                    : 'rgba(249, 250, 251, 0.7)'}
                 />
               </TouchableOpacity>
             </View>
