@@ -116,7 +116,13 @@ export async function uploadVideoToStorage(
       throw new Error('Failed to get public URL for uploaded video');
     }
 
-    return urlData.publicUrl;
+    // Validate URL format
+    const publicUrl = urlData.publicUrl;
+    if (!publicUrl || !publicUrl.startsWith('http://') && !publicUrl.startsWith('https://')) {
+      throw new Error('Invalid Supabase video URL: URL must start with http:// or https://');
+    }
+
+    return publicUrl;
   } catch (err) {
     console.error('Error in uploadVideoToStorage:', err);
     throw err;
