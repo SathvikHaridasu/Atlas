@@ -46,7 +46,8 @@ import SignUpScreen from '../screens/SignUpScreen';
 import PostDareScreen from '../screens/PostDareScreen';
 import SettingsNavigator from './SettingsNavigator';
 import { SwipeableTabWrapper } from '../components/navigation/SwipeableTabWrapper';
-import FadeInOnFocus from '../components/animation/FadeInOnFocus';
+import AnimatedScreenFade from '../components/animated/AnimatedScreenFade';
+import AnimatedTabIcon from '../components/animated/AnimatedTabIcon';
 import { triggerTabChangeHaptic } from '../utils/haptics';
 
 // Enable native screen optimizations
@@ -159,13 +160,25 @@ function MainTabs() {
             iconName = 'help-outline';
           }
 
-          return <Ionicons name={iconName} size={24} color={color} />;
+          return (
+            <AnimatedTabIcon
+              name={iconName}
+              size={24}
+              color={color}
+              focused={focused}
+            />
+          );
         },
         tabBarActiveTintColor: '#03CA59',
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarLabelStyle: {
           fontSize: 12,
           marginBottom: 4,
+        },
+        tabBarStyle: {
+          backgroundColor: '#050608',
+          borderTopColor: '#1F2937',
+          borderTopWidth: 1,
         },
       })}
     >
@@ -176,9 +189,9 @@ function MainTabs() {
             routeNames={TAB_ROUTE_NAMES as string[]}
             currentRouteName="Home"
           >
-            <FadeInOnFocus>
+            <AnimatedScreenFade duration={250}>
               <HomeScreen {...props} />
-            </FadeInOnFocus>
+            </AnimatedScreenFade>
           </SwipeableTabWrapper>
         )}
         options={{
@@ -194,9 +207,9 @@ function MainTabs() {
             routeNames={TAB_ROUTE_NAMES as string[]}
             currentRouteName="Run"
           >
-            <FadeInOnFocus>
+            <AnimatedScreenFade duration={250}>
               <RunScreen {...props} />
-            </FadeInOnFocus>
+            </AnimatedScreenFade>
           </SwipeableTabWrapper>
         )}
         options={{
@@ -212,9 +225,9 @@ function MainTabs() {
             routeNames={TAB_ROUTE_NAMES as string[]}
             currentRouteName="Chats"
           >
-            <FadeInOnFocus>
+            <AnimatedScreenFade duration={250}>
               <SessionsHomeScreen {...props} />
-            </FadeInOnFocus>
+            </AnimatedScreenFade>
           </SwipeableTabWrapper>
         )}
         options={{
@@ -230,9 +243,9 @@ function MainTabs() {
             routeNames={TAB_ROUTE_NAMES as string[]}
             currentRouteName="DareFeed"
           >
-            <FadeInOnFocus>
+            <AnimatedScreenFade duration={250}>
               <DareFeedScreen {...props} />
-            </FadeInOnFocus>
+            </AnimatedScreenFade>
           </SwipeableTabWrapper>
         )}
         options={{
@@ -255,7 +268,7 @@ function MainDrawer() {
       drawerContent={(props) => <SideDrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
-        drawerType: 'front',
+        drawerType: 'slide',
         drawerStyle: {
           width: '75%',
           backgroundColor: theme.background,
@@ -265,6 +278,8 @@ function MainDrawer() {
         overlayColor: 'rgba(0, 0, 0, 0.5)',
         swipeEnabled: true,
         swipeEdgeWidth: 50,
+        drawerHideStatusBarOnOpen: true,
+        animationType: 'slide',
       }}
     >
       <Drawer.Screen
@@ -387,7 +402,15 @@ export default function RootNavigator() {
   return (
     <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
       {user ? (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            animation: 'slide_from_right',
+            contentStyle: {
+              backgroundColor: isDark ? '#020202' : '#FFFFFF',
+            },
+          }}
+        >
           <Stack.Screen
             name="MainDrawer"
             component={MainDrawer}
@@ -406,6 +429,7 @@ export default function RootNavigator() {
             options={{
               headerShown: false,
               presentation: 'modal',
+              animation: 'fade_from_bottom',
             }}
           />
           <Stack.Screen
@@ -447,7 +471,11 @@ export default function RootNavigator() {
           />
           <Stack.Screen
             name="Challenges"
-            component={ChallengesScreen}
+            component={(props) => (
+              <AnimatedScreenFade duration={250}>
+                <ChallengesScreen {...props} />
+              </AnimatedScreenFade>
+            )}
             options={{
               headerShown: true,
               title: 'Goals',
@@ -462,6 +490,7 @@ export default function RootNavigator() {
             options={{
               headerShown: false,
               presentation: 'modal',
+              animation: 'fade_from_bottom',
             }}
           />
           <Stack.Screen
@@ -471,12 +500,20 @@ export default function RootNavigator() {
           />
           <Stack.Screen
             name="Chat"
-            component={ChatScreen}
+            component={(props) => (
+              <AnimatedScreenFade duration={250}>
+                <ChatScreen {...props} />
+              </AnimatedScreenFade>
+            )}
             options={{ headerShown: false }}
           />
           <Stack.Screen
             name="Leaderboard"
-            component={LeaderboardScreen}
+            component={(props) => (
+              <AnimatedScreenFade duration={250}>
+                <LeaderboardScreen {...props} />
+              </AnimatedScreenFade>
+            )}
             options={{ headerShown: false }}
           />
           <Stack.Screen
@@ -490,6 +527,7 @@ export default function RootNavigator() {
             options={{
               headerShown: false,
               presentation: 'modal',
+              animation: 'fade_from_bottom',
             }}
           />
           <Stack.Screen

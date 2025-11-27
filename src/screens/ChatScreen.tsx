@@ -6,6 +6,7 @@ import React, { useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
+  ActivityIndicator,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -22,6 +23,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../contexts/ThemeContext';
 import { uploadImageToStorage } from '../../lib/storageService';
 import { getGroupImageUrl } from '../../lib/storageService';
+import AnimatedMessageBubble from '../components/animated/AnimatedMessageBubble';
+import AnimatedPressable from '../components/animated/AnimatedPressable';
+import TypingIndicator from '../components/animated/TypingIndicator';
 
 interface Message {
   id: string;
@@ -279,44 +283,46 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
   };
 
   const renderMessage = ({ item }: { item: Message }) => (
-    <View style={[styles.messageContainer, item.isMine ? styles.messageRight : styles.messageLeft]}>
-      {!item.isMine && (
-        <Text style={[styles.senderName, { color: theme.mutedText }]}>{item.sender}</Text>
-      )}
-      <View
-        style={[
-          styles.messageBubble,
-          item.isMine
-            ? [styles.bubbleMine, { backgroundColor: theme.accent }]
-            : [styles.bubbleOther, { backgroundColor: theme.card }],
-          item.imageUrl && !item.text && styles.imageOnlyBubble,
-        ]}
-      >
-        {item.imageUrl && (
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={[
-              styles.messageImage,
-              item.text && styles.messageImageWithText,
-            ]}
-            contentFit="cover"
-            transition={200}
-          />
+    <AnimatedMessageBubble>
+      <View style={[styles.messageContainer, item.isMine ? styles.messageRight : styles.messageLeft]}>
+        {!item.isMine && (
+          <Text style={[styles.senderName, { color: theme.mutedText }]}>{item.sender}</Text>
         )}
-        {item.text ? (
-          <Text
-            style={[
-              styles.messageText,
-              item.isMine ? styles.textMine : { color: theme.text },
-              item.imageUrl && styles.messageTextWithImage,
-            ]}
-          >
-            {item.text}
-          </Text>
-        ) : null}
+        <View
+          style={[
+            styles.messageBubble,
+            item.isMine
+              ? [styles.bubbleMine, { backgroundColor: theme.accent }]
+              : [styles.bubbleOther, { backgroundColor: theme.card }],
+            item.imageUrl && !item.text && styles.imageOnlyBubble,
+          ]}
+        >
+          {item.imageUrl && (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={[
+                styles.messageImage,
+                item.text && styles.messageImageWithText,
+              ]}
+              contentFit="cover"
+              transition={200}
+            />
+          )}
+          {item.text ? (
+            <Text
+              style={[
+                styles.messageText,
+                item.isMine ? styles.textMine : { color: theme.text },
+                item.imageUrl && styles.messageTextWithImage,
+              ]}
+            >
+              {item.text}
+            </Text>
+          ) : null}
+        </View>
+        <Text style={[styles.timestamp, { color: theme.mutedText }]}>{formatTime(item.timestamp)}</Text>
       </View>
-      <Text style={[styles.timestamp, { color: theme.mutedText }]}>{formatTime(item.timestamp)}</Text>
-    </View>
+    </AnimatedMessageBubble>
   );
 
   return (
@@ -400,6 +406,13 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
               </Text>
             </View>
 
+            {/* Typing Indicator - Example usage (uncomment and connect to your typing state) */}
+            {/* {isTyping && (
+              <View style={styles.typingContainer}>
+                <TypingIndicator color={theme.accent} />
+              </View>
+            )} */}
+
             {/* Messages List - FlatList only, no ScrollView wrapper */}
             <FlatList
               ref={messagesListRef}
@@ -410,6 +423,11 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
               contentContainerStyle={styles.messagesContent}
               keyboardShouldPersistTaps="handled"
               inverted={false}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
+              updateCellsBatchingPeriod={50}
+              initialNumToRender={15}
+              windowSize={10}
             />
 
             {/* Image Preview Section */}
@@ -460,7 +478,7 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
                 multiline
                 maxLength={500}
               />
-              <TouchableOpacity
+              <AnimatedPressable
                 style={[
                   styles.sendButton,
                   { backgroundColor: theme.border },
@@ -470,7 +488,6 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
                   ],
                 ]}
                 onPress={handleSend}
-                activeOpacity={0.8}
                 disabled={
                   (!inputText.trim() && selectedImages.length === 0) || uploadingImage
                 }
@@ -484,7 +501,7 @@ export default function ChatScreen({ route }: ChatScreenProps = {}) {
                     color={inputText.trim() || selectedImages.length > 0 ? '#000' : theme.mutedText}
                   />
                 )}
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
           </View>
         </TouchableWithoutFeedback>
@@ -739,4 +756,26 @@ const styles = StyleSheet.create({
   sendButtonActive: {
     // backgroundColor set inline with theme.accent
   },
+  typingContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
 });
+
+/**
+ * Animation Patterns Used:
+ * 
+ * - AnimatedMessageBubble: Wraps each message in the FlatList to provide smooth fade-in
+ *   and slide-up animation (opacity 0→1, translateY 10→0) when new messages appear.
+ *   Uses Reanimated spring animations for natural motion.
+ * 
+ * - AnimatedPressable: Replaces TouchableOpacity for the send button to provide subtle
+ *   scale feedback (0.96) on press, making interactions feel more responsive.
+ * 
+ * - TypingIndicator: Available component for showing typing status with gentle bouncing
+ *   dots animation. Uncomment and connect to your typing state when needed.
+ * 
+ * - FlatList Performance: Optimized with removeClippedSubviews, batching settings,
+ *   and proper keyExtractor to ensure smooth scrolling even with many animated messages.
+ *   Each message animates independently without causing list re-renders.
+ */

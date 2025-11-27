@@ -14,6 +14,8 @@ import type { RootTabParamList } from '../navigation/RootNavigator';
 import { SAMPLE_ZONES } from '../lib/sampleZones';
 import { NeonCard } from '../components/ui/NeonCard';
 import { PillButton } from '../components/ui/PillButton';
+import AnimatedCard from '../components/animated/AnimatedCard';
+import AnimatedPressable from '../components/animated/AnimatedPressable';
 
 type HomeScreenNavigationProp = BottomTabNavigationProp<RootTabParamList, 'Home'>;
 
@@ -115,9 +117,9 @@ export default function HomeScreen() {
       {/* Top row */}
       <View style={styles.topRow}>
         <View style={styles.logoRow}>
-          <TouchableOpacity onPress={handleOpenDrawer} activeOpacity={0.7} style={styles.menuButton}>
+          <AnimatedPressable onPress={handleOpenDrawer} style={styles.menuButton}>
             <Ionicons name="menu" size={24} color={theme.text} />
-          </TouchableOpacity>
+          </AnimatedPressable>
           <Ionicons name="footsteps" size={26} color={theme.accent} />
           <Text style={[styles.appTitle, { color: theme.text }]}>Atlas Run</Text>
         </View>
@@ -137,155 +139,166 @@ export default function HomeScreen() {
         {/* Today stats */}
         <Text style={styles.sectionTitle}>Today</Text>
         <View style={styles.statsRow}>
-          <NeonCard style={styles.statCardWrapper}>
-            <Ionicons name="walk-outline" size={24} color="#03CA59" style={styles.statIcon} />
-            <Text style={styles.statValue}>{distanceKm}</Text>
-            <Text style={styles.statLabel}>km</Text>
-            <LinearGradient
-              colors={['transparent', 'rgba(3, 202, 89, 0.06)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
-            />
-          </NeonCard>
-          <NeonCard style={styles.statCardWrapper}>
-            <Ionicons name="time-outline" size={24} color="#03CA59" style={styles.statIcon} />
-            <Text style={styles.statValue}>{formatTime(elapsedSeconds)}</Text>
-            <Text style={styles.statLabel}>time</Text>
-            <LinearGradient
-              colors={['transparent', 'rgba(3, 202, 89, 0.06)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
-            />
-          </NeonCard>
-          <NeonCard style={styles.statCardWrapper}>
-            <Ionicons name="trophy-outline" size={24} color="#03CA59" style={styles.statIcon} />
-            <Text style={styles.statValue}>{points.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>points</Text>
-            <LinearGradient
-              colors={['transparent', 'rgba(3, 202, 89, 0.06)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
-            />
-          </NeonCard>
+          <AnimatedCard from="bottom" delay={0}>
+            <NeonCard style={styles.statCardWrapper}>
+              <Ionicons name="walk-outline" size={24} color="#03CA59" style={styles.statIcon} />
+              <Text style={styles.statValue}>{distanceKm}</Text>
+              <Text style={styles.statLabel}>km</Text>
+              <LinearGradient
+                colors={['transparent', 'rgba(3, 202, 89, 0.06)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
+            </NeonCard>
+          </AnimatedCard>
+          <AnimatedCard from="bottom" delay={50}>
+            <NeonCard style={styles.statCardWrapper}>
+              <Ionicons name="time-outline" size={24} color="#03CA59" style={styles.statIcon} />
+              <Text style={styles.statValue}>{formatTime(elapsedSeconds)}</Text>
+              <Text style={styles.statLabel}>time</Text>
+              <LinearGradient
+                colors={['transparent', 'rgba(3, 202, 89, 0.06)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
+            </NeonCard>
+          </AnimatedCard>
+          <AnimatedCard from="bottom" delay={100}>
+            <NeonCard style={styles.statCardWrapper}>
+              <Ionicons name="trophy-outline" size={24} color="#03CA59" style={styles.statIcon} />
+              <Text style={styles.statValue}>{points.toLocaleString()}</Text>
+              <Text style={styles.statLabel}>points</Text>
+              <LinearGradient
+                colors={['transparent', 'rgba(3, 202, 89, 0.06)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
+            </NeonCard>
+          </AnimatedCard>
         </View>
 
         {/* Saved Runs shortcut */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={handleViewSavedRuns}
-          style={styles.savedRunsCard}
-        >
-          <View style={styles.savedRunsLeft}>
-            <Ionicons name="footsteps-outline" size={18} color={theme.accent} />
-            <View style={styles.savedRunsTextContainer}>
-              <Text style={styles.savedRunsTitle}>Saved runs</Text>
-              <Text style={styles.savedRunsSubtitle}>View your past activities</Text>
+        <AnimatedCard from="bottom" delay={150}>
+          <AnimatedPressable onPress={handleViewSavedRuns} style={styles.savedRunsCard}>
+            <View style={styles.savedRunsLeft}>
+              <Ionicons name="footsteps-outline" size={18} color={theme.accent} />
+              <View style={styles.savedRunsTextContainer}>
+                <Text style={styles.savedRunsTitle}>Saved runs</Text>
+                <Text style={styles.savedRunsSubtitle}>View your past activities</Text>
+              </View>
             </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#fff" />
-        </TouchableOpacity>
+            <Ionicons name="chevron-forward" size={18} color="#fff" />
+          </AnimatedPressable>
+        </AnimatedCard>
 
         {/* Personal goals */}
         <Text style={styles.sectionTitle}>Personal goals</Text>
-        <NeonCard highlight>
-          <Text style={styles.goalTitle}>Run {weeklyGoalKm} km this week</Text>
-          <Text style={styles.goalSubtitle}>
-            You've run {distanceKm} km so far.
-          </Text>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${weekProgress * 100}%` },
-              ]}
-            />
-          </View>
-          <Text style={styles.progressText}>
-            {Math.round(weekProgress * 100)}% complete
-          </Text>
-        </NeonCard>
+        <AnimatedCard from="bottom" delay={200}>
+          <NeonCard highlight>
+            <Text style={styles.goalTitle}>Run {weeklyGoalKm} km this week</Text>
+            <Text style={styles.goalSubtitle}>
+              You've run {distanceKm} km so far.
+            </Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${weekProgress * 100}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {Math.round(weekProgress * 100)}% complete
+            </Text>
+          </NeonCard>
+        </AnimatedCard>
 
         {/* Mini Map card */}
-        <NeonCard>
-          <View style={styles.miniMapHeader}>
-            <Text style={styles.masterMapTitle}>Your territory</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("MasterMap" as never)}>
-              <Text style={styles.miniMapLink}>Open map</Text>
-            </TouchableOpacity>
-          </View>
+        <AnimatedCard from="bottom" delay={250}>
+          <NeonCard>
+            <View style={styles.miniMapHeader}>
+              <Text style={styles.masterMapTitle}>Your territory</Text>
+              <AnimatedPressable onPress={() => navigation.navigate("MasterMap" as never)}>
+                <Text style={styles.miniMapLink}>Open map</Text>
+              </AnimatedPressable>
+            </View>
 
-          <View style={styles.miniMapContainer}>
-            {miniRegion ? (
-              <MapView
-                style={StyleSheet.absoluteFill}
-                provider="google"
-                initialRegion={miniRegion}
-                showsUserLocation
-                scrollEnabled={false}
-                zoomEnabled={false}
-                pitchEnabled={false}
-                rotateEnabled={false}
-                pointerEvents="none"
-              >
-                {myZones.map((zone) => (
-                  <Polygon
-                    key={zone.id}
-                    coordinates={zone.coordinates}
-                    strokeWidth={2}
-                    strokeColor="rgba(3,202,89,1)"
-                    fillColor="rgba(3,202,89,0.3)"
-                  />
-                ))}
-              </MapView>
-            ) : (
-              <View style={styles.miniMapPlaceholder}>
-                <Text style={styles.miniMapPlaceholderText}>
-                  {locationError ?? "Loading your area..."}
-                </Text>
-              </View>
-            )}
-          </View>
-        </NeonCard>
+            <View style={styles.miniMapContainer}>
+              {miniRegion ? (
+                <MapView
+                  style={StyleSheet.absoluteFill}
+                  provider="google"
+                  initialRegion={miniRegion}
+                  showsUserLocation
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                  pointerEvents="none"
+                >
+                  {myZones.map((zone) => (
+                    <Polygon
+                      key={zone.id}
+                      coordinates={zone.coordinates}
+                      strokeWidth={2}
+                      strokeColor="rgba(3,202,89,1)"
+                      fillColor="rgba(3,202,89,0.3)"
+                    />
+                  ))}
+                </MapView>
+              ) : (
+                <View style={styles.miniMapPlaceholder}>
+                  <Text style={styles.miniMapPlaceholderText}>
+                    {locationError ?? "Loading your area..."}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </NeonCard>
+        </AnimatedCard>
 
         {/* Quick actions */}
         <Text style={styles.sectionTitle}>Quick actions</Text>
         <View style={styles.quickRow}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleStartRun}
-            activeOpacity={0.8}
-          >
-            <View style={styles.actionIconPrimary}>
-              <Ionicons name="play" size={24} color="#000" />
-            </View>
-            <Text style={styles.actionLabel}>Start Run</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleViewChallenges}
-            activeOpacity={0.8}
-          >
-            <View style={styles.actionIcon}>
-              <Ionicons name="flag-outline" size={24} color="#03CA59" />
-            </View>
-            <Text style={styles.actionLabel}>Goals</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleGoToChat}
-            activeOpacity={0.8}
-          >
-            <View style={styles.actionIcon}>
-              <Ionicons name="chatbubbles-outline" size={24} color="#03CA59" />
-            </View>
-            <Text style={styles.actionLabel}>Group Chats</Text>
-          </TouchableOpacity>
+          <AnimatedCard from="right" delay={300}>
+            <AnimatedPressable
+              style={styles.actionButton}
+              onPress={handleStartRun}
+            >
+              <View style={styles.actionIconPrimary}>
+                <Ionicons name="play" size={24} color="#000" />
+              </View>
+              <Text style={styles.actionLabel}>Start Run</Text>
+            </AnimatedPressable>
+          </AnimatedCard>
+          <AnimatedCard from="right" delay={350}>
+            <AnimatedPressable
+              style={styles.actionButton}
+              onPress={handleViewChallenges}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="flag-outline" size={24} color="#03CA59" />
+              </View>
+              <Text style={styles.actionLabel}>Goals</Text>
+            </AnimatedPressable>
+          </AnimatedCard>
+          <AnimatedCard from="right" delay={400}>
+            <AnimatedPressable
+              style={styles.actionButton}
+              onPress={handleGoToChat}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="chatbubbles-outline" size={24} color="#03CA59" />
+              </View>
+              <Text style={styles.actionLabel}>Group Chats</Text>
+            </AnimatedPressable>
+          </AnimatedCard>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -508,3 +521,21 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.6)',
   },
 });
+
+/**
+ * Animation Patterns Used:
+ * 
+ * - AnimatedCard: Wraps all card-like containers (stat cards, saved runs, goals, map, quick actions)
+ *   to provide smooth fade-in and slide animations on mount. Uses staggered delays (50ms increments)
+ *   to create a sequential appearance effect.
+ * 
+ * - AnimatedPressable: Replaces TouchableOpacity for all interactive elements (menu button, saved runs
+ *   card, map link, quick action buttons) to provide subtle scale feedback (0.96) on press.
+ * 
+ * - Animation directions:
+ *   - Stat cards and vertical sections: from="bottom" (slide up)
+ *   - Quick action buttons: from="right" (slide in from right)
+ * 
+ * - Delays are kept small (0-400ms) to maintain responsiveness while creating a polished feel.
+ *   All animations run on the UI thread via Reanimated worklets for smooth performance.
+ */
