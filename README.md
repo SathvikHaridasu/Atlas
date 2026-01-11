@@ -2,6 +2,8 @@
 
 Atlas is a React Native mobile application that transforms physical activity into an engaging, social, and competitive experience. By combining GPS-based run tracking, territory capture mechanics, social sessions, and video-based challenges, Atlas motivates users to stay active while building community connections.
 
+Won 2nd Place @ NeoDev League 2025
+
 ---
 
 ## Project Description
